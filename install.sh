@@ -5,7 +5,7 @@
 # - Custom hyprland.conf with eink dots
 # - Added NVIDIA, Network & Bluetooth support
 # - PipeWire audio stack with WirePlumber
-# - Custom waybar configuration
+# - Custom frosted waybar with black icons
 # - Increased gap between waybar and windows
 # - Colemak DH layout
 ###################################################
@@ -35,6 +35,7 @@ print_error() { echo -e "${RED}[✗]${RC} $1"; }
 print_warning() { echo -e "${YELLOW}[!]${RC} $1"; }
 print_hardware() { echo -e "${BLUE}[HARDWARE]${RC} $1"; }
 print_nvidia() { echo -e "${BLUE}[NVIDIA]${RC} $1"; }
+print_audio() { echo -e "${BLUE}[AUDIO]${RC} $1"; }
 
 check_root() {
     if [ "$EUID" -eq 0 ]; then
@@ -81,6 +82,7 @@ install_hardware_support() {
     local hardware_pkgs=(
         networkmanager        # For WiFi, Ethernet, etc.
         network-manager-applet  # Systray applet for NetworkManager
+        nm-connection-editor    # GUI for NetworkManager connections
         bluez                 # Bluetooth protocol stack
         bluez-utils           # Bluetooth utilities
         blueman               # GTK Bluetooth manager
@@ -101,6 +103,8 @@ install_hardware_support() {
         local nvidia_pkgs=(
             nvidia-dkms            # NVIDIA driver with DKMS for kernel compatibility
             nvidia-utils           # NVIDIA driver utilities
+            lib32-nvidia-utils     # 32-bit NVIDIA utilities (for gaming)
+            nvidia-settings        # NVIDIA settings GUI
         )
         sudo pacman -S --needed --noconfirm "${nvidia_pkgs[@]}"
 
@@ -124,8 +128,28 @@ install_hardware_support() {
     fi
 }
 
+remove_conflicting_audio() {
+    print_audio "Checking for conflicting audio packages..."
+    local pulseaudio_pkgs=(pulseaudio pulseaudio-alsa pulseaudio-bluetooth pulseaudio-jack)
+    local installed_conflicts=()
+    
+    for pkg in "${pulseaudio_pkgs[@]}"; do
+        if pacman -Qi "$pkg" &>/dev/null; then
+            installed_conflicts+=("$pkg")
+        fi
+    done
+    
+    if [ ${#installed_conflicts[@]} -gt 0 ]; then
+        print_audio "Removing conflicting PulseAudio packages: ${installed_conflicts[*]}"
+        sudo pacman -Rns --noconfirm "${installed_conflicts[@]}" 2>/dev/null || true
+    fi
+}
+
 install_packages() {
     print_msg "Installing core packages..."
+    
+    # First remove any conflicting audio packages
+    remove_conflicting_audio
     
     local packages=(
         # Core system
@@ -153,21 +177,17 @@ install_packages() {
         alacritty helix
         
         # Apps
-        nautilus mpv htop
+        nautilus mpv htop neofetch
         
         # Utils
         brightnessctl pamixer playerctl polkit-gnome
         
         # Fonts
-        ttf-jetbrains-mono-nerd ttf-font-awesome ttf-opensans
+        ttf-jetbrains-mono-nerd ttf-font-awesome ttf-opensans noto-fonts-emoji
         
         # Wayland support
         qt5-wayland qt6-wayland
     )
-    
-    # Remove any conflicting PulseAudio packages if they exist
-    print_hardware "Removing any conflicting PulseAudio packages..."
-    sudo pacman -Rns --noconfirm pulseaudio pulseaudio-alsa pulseaudio-bluetooth 2>/dev/null || true
     
     sudo pacman -S --needed --noconfirm "${packages[@]}"
     
@@ -177,10 +197,18 @@ install_packages() {
     print_success "Core packages installed."
     
     # Enable and start PipeWire services for the user
-    print_hardware "Configuring PipeWire audio system..."
+    print_audio "Configuring PipeWire audio system..."
     systemctl --user enable pipewire.service
     systemctl --user enable pipewire-pulse.service
     systemctl --user enable wireplumber.service
+    
+    # Start services immediately if not in chroot
+    if [ -z "$CHROOT" ]; then
+        systemctl --user start pipewire.service
+        systemctl --user start pipewire-pulse.service
+        systemctl --user start wireplumber.service
+    fi
+    
     print_success "PipeWire and WirePlumber configured for user session."
 }
 
@@ -272,12 +300,12 @@ deploy_configs() {
     done
     
     # Deploy custom waybar config from our repo
-    print_msg "Deploying custom waybar configuration..."
+    print_msg "Deploying custom frosted waybar configuration..."
     mkdir -p "$CONFIG_DIR/waybar"
     if [ -f "$custom_root/waybar/config.jsonc" ] && [ -f "$custom_root/waybar/style.css" ]; then
         cp "$custom_root/waybar/config.jsonc" "$CONFIG_DIR/waybar/"
         cp "$custom_root/waybar/style.css" "$CONFIG_DIR/waybar/"
-        print_success "Custom waybar configuration deployed."
+        print_success "Custom frosted waybar configuration deployed."
     else
         print_error "Custom waybar configuration files not found in repository!"
     fi
@@ -339,51 +367,113 @@ setup_wallpapers() {
     fi
 }
 
+verify_audio_setup() {
+    print_audio "Verifying audio setup..."
+    
+    # Check if PipeWire is running
+    if systemctl --user is-active pipewire.service &>/dev/null; then
+        print_success "PipeWire service is active."
+    else
+        print_warning "PipeWire service is not active. It will start after reboot."
+    fi
+    
+    # Check if WirePlumber is running
+    if systemctl --user is-active wireplumber.service &>/dev/null; then
+        print_success "WirePlumber service is active."
+    else
+        print_warning "WirePlumber service is not active. It will start after reboot."
+    fi
+}
+
 cleanup() {
     print_msg "Cleaning up temporary files..."
     rm -rf "$TEMP_DIR"
 }
 
+print_post_install() {
+    echo ""
+    echo -e "${CYAN}╔════════════════════════════════════════════════════════════╗${RC}"
+    echo -e "${CYAN}║                   POST-INSTALLATION INFO                      ║${RC}"
+    echo -e "${CYAN}╚════════════════════════════════════════════════════════════╝${RC}"
+    echo ""
+    print_success "Installation complete!"
+    
+    if [ -d "$BACKUP_DIR" ]; then
+        print_msg "Your old configs were backed up to:"
+        echo "  → $BACKUP_DIR"
+    fi
+    
+    echo ""
+    echo -e "${GREEN}Features Installed:${RC}"
+    echo "  ✓ Hyprland with Colemak DH keyboard layout"
+    echo "  ✓ Frosted waybar with black icons and blur effect"
+    echo "  ✓ PipeWire audio system with WirePlumber"
+    echo "  ✓ NetworkManager for network management"
+    echo "  ✓ Bluetooth support with Blueman"
+    echo "  ✓ Gap between waybar and windows: 28 pixels"
+    
+    if [ "$NVIDIA_INSTALL" = "true" ]; then
+        echo ""
+        echo -e "${YELLOW}╔════════════════════════════════════════════════════════════╗${RC}"
+        echo -e "${YELLOW}║                      NVIDIA SETUP                             ║${RC}"
+        echo -e "${YELLOW}╚════════════════════════════════════════════════════════════╝${RC}"
+        print_nvidia "NVIDIA drivers installed and configured."
+        print_warning "You may need to add 'nvidia_drm.modeset=1' to your bootloader."
+    fi
+    
+    echo ""
+    echo -e "${CYAN}Keybindings:${RC}"
+    echo "  Super+T        → Terminal (Alacritty)"
+    echo "  Super+E        → File Manager (Nautilus)"
+    echo "  Super+F        → Browser (Zen)"
+    echo "  Super+V        → Volume Control (PavuControl)"
+    echo "  Super+A        → Application Launcher (Wofi)"
+    echo "  Super+Q        → Close Window"
+    echo "  Super+W        → Toggle Floating"
+    echo "  Super+P        → Screenshot (selection)"
+    echo "  Print          → Screenshot (full screen)"
+    
+    echo ""
+    echo -e "${YELLOW}╔════════════════════════════════════════════════════════════╗${RC}"
+    echo -e "${YELLOW}║                    IMPORTANT NEXT STEPS                       ║${RC}"
+    echo -e "${YELLOW}╚════════════════════════════════════════════════════════════╝${RC}"
+    echo ""
+    print_warning "1. REBOOT YOUR SYSTEM to apply all changes"
+    print_warning "2. After reboot, log into a TTY (Ctrl+Alt+F2)"
+    print_warning "3. Type 'Hyprland' and press Enter to start the session"
+    echo ""
+}
+
 main() {
     clear
     echo -e "${CYAN}"
-    echo "╔════════════════════════════════════════════╗"
-    echo "║        E-ink Dotfiles Installer            ║"
-    echo "║    (Colemak DH + Custom Waybar + PipeWire) ║"
-    echo "╚════════════════════════════════════════════╝"
+    echo "╔════════════════════════════════════════════════════════════╗"
+    echo "║          E-ink Dotfiles Installer (Enhanced)                ║"
+    echo "║                                                              ║"
+    echo "║  • Colemak DH Layout                                        ║"
+    echo "║  • Frosted Waybar with Black Icons                          ║"
+    echo "║  • PipeWire Audio Stack                                     ║"
+    echo "║  • NVIDIA Support (Optional)                                ║"
+    echo "╚════════════════════════════════════════════════════════════╝"
     echo -e "${RC}"
+    echo ""
     
     check_root
     trap cleanup EXIT
     
+    # Main installation flow
     install_chaotic_aur
-    install_hardware_support # Install drivers and enable services first
-    install_packages         # Installs core software including PipeWire
+    install_hardware_support
+    install_packages
     install_aur_packages
     clone_dotfiles
     deploy_configs
     setup_wallpapers
+    verify_audio_setup
     
-    echo ""
-    print_success "Installation complete!"
-    if [ -d "$BACKUP_DIR" ]; then
-        print_msg "Your old configs were backed up to: $BACKUP_DIR"
-    fi
-    echo ""
-    print_msg "Keyboard layout is set to Colemak DH"
-    print_msg "Custom waybar configuration deployed"
-    print_msg "PipeWire audio system with WirePlumber installed - Use Super+V to open volume control"
-    print_msg "Gap between waybar and windows increased to 28 pixels"
-    print_warning "A REBOOT is strongly recommended to apply all changes, especially kernel modules."
-    if [ "$NVIDIA_INSTALL" = "true" ]; then
-        echo -e "${YELLOW}############################## NVIDIA POST-INSTALL ##############################${RC}"
-        print_nvidia "NVIDIA drivers have been installed and configured."
-        print_warning "If you have issues booting, you may need to add 'nvidia_drm.modeset=1' to your bootloader's kernel parameters manually."
-        echo -e "${YELLOW}###################################################################################${RC}"
-    fi
-    echo ""
-    print_msg "After rebooting, start the session by typing 'Hyprland' in a TTY and pressing Enter."
-    echo ""
+    # Print post-installation information
+    print_post_install
 }
 
+# Run the main function
 main "$@"
