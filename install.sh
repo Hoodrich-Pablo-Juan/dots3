@@ -183,7 +183,7 @@ install_packages() {
         brightnessctl pamixer playerctl polkit-gnome
         
         # Fonts
-        ttf-jetbrains-mono-nerd otf-montserrat ttf-font-awesome ttf-opensans noto-fonts-emoji
+        ttf-jetbrains-mono-nerd ttf-font-awesome ttf-opensans ttf-montserrat noto-fonts-emoji
         
         # Wayland support
         qt5-wayland qt6-wayland
