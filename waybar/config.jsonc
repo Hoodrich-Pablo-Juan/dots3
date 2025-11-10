@@ -1,96 +1,104 @@
 {
-    "layer": "top",
-    "position": "top",
-    "height": 28,
-    "spacing": 0,
+  "layer": "top",
+  "position": "top",
+  "height": 28,
+  "spacing": 0,
 
-    "modules-left": ["hyprland/workspaces"],
-    "modules-center": ["clock", "custom/separator", "custom/weather"],
-    "modules-right": ["wireplumber", "battery", "hyprland/language", "idle_inhibitor", "network", "bluetooth", "tray"],
+  "modules-left": ["hyprland/workspaces"],
+  "modules-center": ["clock", "custom/separator", "custom/weather"],
+  "modules-right": [
+    "wireplumber",
+    "battery",
+    "hyprland/language",
+    "idle_inhibitor",
+    "network",
+    "bluetooth",
+    "tray"
+  ],
 
-    "hyprland/workspaces": {
-        "format": "<span size='larger'>{icon}</span>",
-        "on-click": "activate",
-        "format-icons": {
-            "active": "●",
-            "default": "○"
-        },
-        "sort-by-number": true,
-        "persistent-workspaces": {
-            "1": [],
-            "2": [],
-            "3": [],
-            "4": [],
-            "5": []
-        }
+  "hyprland/workspaces": {
+    "format": "<span size='larger'>{icon}</span>",
+    "on-click": "activate",
+    "format-icons": {
+      "active": "●",
+      "default": "○"
     },
-
-    "clock": {
-        "format": "{:%H:%M}",
-        "tooltip-format": "{:%A, %d %B %Y}"
-    },
-
-    "custom/separator": {
-        "format": "|",
-        "tooltip": false
-    },
-
-    "custom/weather": {
-        "format": "{}",
-        "exec": "curl -sf 'wttr.in/Timisoara?format=%c+%t' || echo 'N/A'",
-        "interval": 900
-    },
-
-    "wireplumber": {
-        "format": "vol {volume}%",
-        "format-muted": "vol muted",
-        "max-volume": 100,
-        "scroll-step": 5
-    },
-
-    "battery": {
-        "bat": "BAT0",
-        "interval": 60,
-        "format": "bat  {capacity}%",
-        "format-charging": "bat+ {capacity}%",
-        "format-full": "bat✓ {capacity}%"
-    },
-
-    "network": {
-        "format": "net",
-        "format-ethernet": "eth",
-        "format-wifi": "wifi",
-        "format-disconnected": "net✗",
-        "tooltip-format-wifi": "{essid} ({signalStrength}%)",
-        "tooltip-format-ethernet": "{ifname}",
-        "tooltip-format-disconnected": "Disconnected"
-    },
-
-    "bluetooth": {
-        "format": "bt",
-        "format-disabled": "bt✗",
-        "format-connected": "bt✓",
-        "tooltip-format": "{controller_alias}\t{controller_address}",
-        "tooltip-format-connected": "{controller_alias}\t{controller_address}\n\n{device_enumerate}",
-        "tooltip-format-enumerate-connected": "{device_alias}\t{device_address}"
-    },
-
-    "hyprland/language": {
-        "format": "{}",
-        "format-en": "en",
-        "format-ro": "ro"
-    },
-
-    "tray": {
-        "icon-size": 14,
-        "spacing": 10
-    },
-
-    "idle_inhibitor": {
-        "format": "{icon}",
-        "format-icons": {
-            "activated": "idle✗",
-            "deactivated": "idle"
-        }
+    "sort-by-number": true,
+    "persistent-workspaces": {
+      "1": [],
+      "2": [],
+      "3": [],
+      "4": [],
+      "5": []
     }
+  },
+
+  "clock": {
+    "format": "{:%H:%M}",
+    "tooltip-format": "{:%A, %d %B %Y}"
+  },
+
+  "custom/separator": {
+    "format": "|",
+    "tooltip": false
+  },
+
+  "custom/weather": {
+    "format": "{}",
+    "exec": "curl -sf 'wttr.in/Timisoara?format=%c+%t' || echo 'N/A'",
+    "interval": 900
+  },
+
+  "wireplumber": {
+    "format": " {volume}%",
+    "format-muted": " muted",
+    "max-volume": 100,
+    "scroll-step": 5
+  },
+
+  "battery": {
+    "bat": "BAT0",
+    "interval": 60,
+    "format": "  {capacity}%",
+    "format-charging": "  {capacity}%",
+    "format-full": "  {capacity}%"
+  },
+
+  "network": {
+    "format": " ",
+    "format-ethernet": " ",
+    "format-wifi": " ",
+    "format-disconnected": " ",
+    "tooltip-format-wifi": "{essid} ({signalStrength}%)",
+    "tooltip-format-ethernet": "{ifname}",
+    "tooltip-format-disconnected": "Disconnected"
+  },
+
+  "bluetooth": {
+    "format": " ",
+    "format-disabled": " ",
+    "format-connected": "✓",
+    "tooltip-format": "{controller_alias}\t{controller_address}",
+    "tooltip-format-connected": "{controller_alias}\t{controller_address}\n\n{device_enumerate}",
+    "tooltip-format-enumerate-connected": "{device_alias}\t{device_address}"
+  },
+
+  "hyprland/language": {
+    "format": "{}",
+    "format-en": "en",
+    "format-ro": "ro"
+  },
+
+  "tray": {
+    "icon-size": 14,
+    "spacing": 10
+  },
+
+  "idle_inhibitor": {
+    "format": "{icon}",
+    "format-icons": {
+      "activated": " ",
+      "deactivated": " "
+    }
+  }
 }
