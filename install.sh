@@ -1,9 +1,12 @@
 #!/bin/bash
 
-###########################################
-# E-ink Dotfiles Installation Script
-# Using custom hyprland.conf with eink dots
-###########################################
+###################################################
+# E-ink Dotfiles Installation Script (Enhanced)
+# - Custom hyprland.conf with eink dots
+# - Added NVIDIA, Network & Bluetooth support
+# - Colemak DH layout
+# - Custom transparent waybar configuration
+###################################################
 
 set -e
 
@@ -13,20 +16,26 @@ RED='\033[31m'
 YELLOW='\033[33m'
 GREEN='\033[32m'
 CYAN='\033[36m'
+BLUE='\033[34m'
 
+# Script Variables
 BACKUP_DIR="$HOME/.config/cfg_backups/$(date +%Y%m%d_%H%M%S)"
 CONFIG_DIR="$HOME/.config"
 TEMP_DIR="/tmp/eink-dots-$$"
 REPO_URL="https://gitlab.com/dotfiles_hypr/eink.git"
+NVIDIA_INSTALL="false" # Flag to track NVIDIA installation
 
+# --- Messaging Functions ---
 print_msg() { echo -e "${CYAN}[E-ink]${RC} $1"; }
 print_success() { echo -e "${GREEN}[✓]${RC} $1"; }
 print_error() { echo -e "${RED}[✗]${RC} $1"; }
 print_warning() { echo -e "${YELLOW}[!]${RC} $1"; }
+print_hardware() { echo -e "${BLUE}[HARDWARE]${RC} $1"; }
+print_nvidia() { echo -e "${BLUE}[NVIDIA]${RC} $1"; }
 
 check_root() {
     if [ "$EUID" -eq 0 ]; then
-        print_error "Don't run as root!"
+        print_error "This script should not be run as root. Sudo will be used where needed."
         exit 1
     fi
 }
@@ -36,43 +45,92 @@ backup_config() {
     local config_path="$CONFIG_DIR/$config_name"
     
     if [ -e "$config_path" ]; then
-        print_msg "Backing up $config_name..."
+        print_msg "Backing up existing '$config_name' config..."
         mkdir -p "$BACKUP_DIR"
-        cp -r "$config_path" "$BACKUP_DIR/"
+        mv "$config_path" "$BACKUP_DIR/"
+        print_success "Backed up '$config_name' to $BACKUP_DIR"
     fi
 }
 
 install_chaotic_aur() {
-    print_msg "Installing Chaotic-AUR..."
-    
+    print_msg "Setting up Chaotic-AUR repository..."
     if grep -q "\[chaotic-aur\]" /etc/pacman.conf 2>/dev/null; then
-        print_success "Chaotic-AUR already configured"
+        print_success "Chaotic-AUR is already configured."
+        sudo pacman -Sy
         return
     fi
     
+    print_hardware "Importing Chaotic-AUR keys..."
     sudo pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com
     sudo pacman-key --lsign-key 3056513887B78AEB
     sudo pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst'
     sudo pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst'
     
-    if ! grep -q "\[chaotic-aur\]" /etc/pacman.conf; then
-        echo "" | sudo tee -a /etc/pacman.conf
-        echo "[chaotic-aur]" | sudo tee -a /etc/pacman.conf
-        echo "Include = /etc/pacman.d/chaotic-mirrorlist" | sudo tee -a /etc/pacman.conf
-    fi
+    print_hardware "Adding Chaotic-AUR to pacman.conf..."
+    echo -e "\n[chaotic-aur]\nInclude = /etc/pacman.d/chaotic-mirrorlist" | sudo tee -a /etc/pacman.conf
     
     sudo pacman -Sy
-    print_success "Chaotic-AUR installed"
+    print_success "Chaotic-AUR setup complete."
+}
+
+install_hardware_support() {
+    print_hardware "Installing support for networking and Bluetooth..."
+    local hardware_pkgs=(
+        networkmanager        # For WiFi, Ethernet, etc.
+        network-manager-applet  # Systray applet for NetworkManager
+        bluez                 # Bluetooth protocol stack
+        bluez-utils           # Bluetooth utilities
+        blueman               # GTK Bluetooth manager
+    )
+    sudo pacman -S --needed --noconfirm "${hardware_pkgs[@]}"
+    
+    print_hardware "Enabling system services..."
+    sudo systemctl enable NetworkManager.service
+    sudo systemctl enable bluetooth.service
+    print_success "NetworkManager and Bluetooth services enabled."
+
+    echo ""
+    read -p "$(echo -e ${YELLOW}"[?] Do you want to install NVIDIA drivers for Hyprland? (y/N): "${RC})" -n 1 -r REPLY
+    echo
+    if [[ "$REPLY" =~ ^[Yy]$ ]]; then
+        NVIDIA_INSTALL="true"
+        print_nvidia "Proceeding with NVIDIA driver installation."
+        local nvidia_pkgs=(
+            nvidia-dkms            # NVIDIA driver with DKMS for kernel compatibility
+            nvidia-utils           # NVIDIA driver utilities
+            nvidia-wayland-utils   # For Wayland support
+            egl-wayland            # EGLStream backend for Wayland
+        )
+        sudo pacman -S --needed --noconfirm "${nvidia_pkgs[@]}"
+
+        print_nvidia "Configuring kernel modules for NVIDIA..."
+        if ! grep -q "nvidia" /etc/mkinitcpio.conf; then
+            sudo sed -i 's/^MODULES=()/MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)/' /etc/mkinitcpio.conf
+            print_nvidia "Added NVIDIA modules to mkinitcpio.conf."
+        else
+            print_nvidia "NVIDIA modules already seem to be in mkinitcpio.conf."
+        fi
+        
+        print_nvidia "Creating modprobe configuration for KMS..."
+        echo "options nvidia_drm modeset=1" | sudo tee /etc/modprobe.d/nvidia.conf
+        
+        print_nvidia "Rebuilding initramfs (this may take a moment)..."
+        sudo mkinitcpio -P
+        
+        print_success "NVIDIA base configuration complete."
+    else
+        print_msg "Skipping NVIDIA driver installation."
+    fi
 }
 
 install_packages() {
-    print_msg "Installing packages..."
+    print_msg "Installing core packages..."
     
     local packages=(
         # Core system
         base-devel git curl wget
         
-        # Core Hyprland
+        # Core Hyprland (placeholder, will be replaced if NVIDIA is selected)
         hyprland hyprpaper hyprpicker xdg-desktop-portal-hyprland
         
         # Wayland tools
@@ -90,31 +148,37 @@ install_packages() {
         # Utils
         brightnessctl pamixer playerctl polkit-gnome
         
-        # Fonts
-        ttf-jetbrains-mono-nerd ttf-font-awesome
+        # Fonts (added OpenSans for waybar)
+        ttf-jetbrains-mono-nerd ttf-font-awesome ttf-opensans
         
         # Wayland support
         qt5-wayland qt6-wayland
     )
     
+    if [ "$NVIDIA_INSTALL" = "true" ]; then
+        print_nvidia "Replacing 'hyprland' with 'hyprland-nvidia' for installation."
+        packages=("${packages[@]/hyprland/hyprland-nvidia}")
+    fi
+    
     sudo pacman -S --needed --noconfirm "${packages[@]}"
     
     # Try to install ghostty if available
-    sudo pacman -S --needed --noconfirm ghostty 2>/dev/null || print_warning "Ghostty not in repos, will try AUR"
+    sudo pacman -S --needed --noconfirm ghostty 2>/dev/null || print_warning "Ghostty not in official repos, will try AUR later."
     
-    print_success "Core packages installed"
+    print_success "Core packages installed."
 }
 
 install_aur_packages() {
-    print_msg "Installing AUR packages..."
+    print_msg "Installing AUR packages with yay..."
     
     if ! command -v yay &> /dev/null; then
-        print_msg "Installing yay..."
+        print_msg "AUR helper 'yay' not found. Installing..."
         cd /tmp
         git clone https://aur.archlinux.org/yay.git
         cd yay
         makepkg -si --noconfirm
-        cd -
+        cd ..
+        rm -rf yay
     fi
     
     local aur_packages=(
@@ -122,67 +186,76 @@ install_aur_packages() {
         localsend-bin
     )
     
-    # Try ghostty from AUR if not installed
+    # Try ghostty from AUR if it wasn't installed from other repos
     if ! command -v ghostty &> /dev/null; then
         aur_packages+=(ghostty)
     fi
     
-    for pkg in "${aur_packages[@]}"; do
-        yay -S --needed --noconfirm "$pkg" || print_warning "Failed to install $pkg"
-    done
-    
-    print_success "AUR packages installed"
+    if [ ${#aur_packages[@]} -gt 0 ]; then
+        for pkg in "${aur_packages[@]}"; do
+            yay -S --needed --noconfirm "$pkg" || print_warning "Failed to install '$pkg' from AUR."
+        done
+        print_success "AUR packages installed."
+    else
+        print_msg "No additional AUR packages to install."
+    fi
 }
 
 create_custom_hyprland_conf() {
-    print_msg "Creating custom hyprland.conf..."
+    print_msg "Creating custom hyprland.conf with Colemak DH layout..."
     
+    # Base config with updated input section
     cat > "$TEMP_DIR/hyprland.conf" << 'EOF'
 #############################################
 # E-ink Glass - Modified with HyDE keybinds
 #############################################
 
+# --- Session & Environment ---
 env = XDG_CURRENT_DESKTOP,Hyprland
 env = XDG_SESSION_TYPE,wayland
 env = GDK_BACKEND,wayland
+env = QT_QPA_PLATFORM,wayland
+env = XCURSOR_SIZE,24
+env = HYPRCURSOR_SIZE,24
 
 # Unscale XWayland
 xwayland {
   force_zero_scaling = true
 }
 
-# Toolkit-specific scale
-env = GDK_SCALE,1
-env = XCURSOR_SIZE,24
-
-# Monitor config: 3440x1440@120Hz on DP-1, scale 1
-monitor = DP-1,3440x1440@120,0x0,1
-monitor = DP-1, addreserved, 40, 0, 0, 0
-
+# --- Monitor & Execs ---
+monitor = ,preferred,auto,1
 exec-once = brightnessctl set 10%
 exec-once = swaybg -i ~/.config/wallpapers/eink.jpg -m fill
 
-# Session vars for portals
-exec-once = dbus-update-activation-environment --systemd DISPLAY WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
-exec-once = systemctl --user import-environment DISPLAY WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
-
-# Portals
-exec-once = bash -lc 'sleep 0.6; systemctl --user restart xdg-desktop-portal-hyprland.service xdg-desktop-portal.service'
-
-# Waybar
+# Session vars for portals & services
+exec-once = dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP
+exec-once = systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP
+exec-once = /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
+exec-once = nm-applet --indicator
 exec-once = waybar
-
-# Notification daemon
 exec-once = dunst
 
-# Polkit
-exec-once = /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
-
-# Variables
+# --- Variables ---
 $terminal = alacritty
 $fileManager = nautilus
 $browser = zen-browser
 $mainMod = Super
+
+# --- Input & Gestures with Colemak DH ---
+input {
+    kb_layout = us
+    kb_variant = colemak_dh
+    numlock_by_default = true
+    mouse_refocus = false
+    accel_profile = flat
+    follow_mouse = 1
+    sensitivity = 0
+
+    touchpad {
+        natural_scroll = true
+    }
+}
 
 gestures {
     workspace_swipe_invert = true
@@ -191,9 +264,7 @@ gestures {
     workspace_swipe_cancel_ratio = 0.3
 }
 
-env = XCURSOR_SIZE,24
-env = HYPRCURSOR_SIZE,24
-
+# --- General & Decoration ---
 general {
     gaps_in = 8
     gaps_out = 16
@@ -209,13 +280,11 @@ decoration {
     active_opacity = 1.0
     inactive_opacity = 0.92
 
-    shadow {
-        enabled = true
-        range = 30
-        render_power = 2
-        color = rgba(00000055)
-        offset = 0 4
-    }
+    drop_shadow = true
+    shadow_range = 30
+    shadow_render_power = 2
+    col.shadow = rgba(00000055)
+    shadow_offset = 0 4
 
     blur {
         enabled = true
@@ -227,6 +296,7 @@ decoration {
     }
 }
 
+# --- Animations & Layouts ---
 animations {
     enabled = true
     bezier = ease, 0.15, 0.9, 0.1, 1.0
@@ -238,27 +308,13 @@ animations {
 }
 
 dwindle {
-    pseudotile = true
-    preserve_split = true
+    pseudotile = yes
+    preserve_split = yes
 }
 
 misc {
     force_default_wallpaper = 0
     disable_hyprland_logo = true
-}
-
-input {
-    kb_layout = colemak_dh,ua
-    kb_options = grp:alt_shift_toggle
-    numlock_by_default = true
-    mouse_refocus = false
-    accel_profile = flat
-    follow_mouse = 1
-    sensitivity = 0
-
-    touchpad {
-        natural_scroll = true
-    }
 }
 
 #############################################
@@ -363,32 +419,11 @@ bind = $mainMod Control, Right, workspace, r+1
 bind = $mainMod Control, Left, workspace, r-1
 bind = $mainMod Control, Down, workspace, empty
 
-# Move to workspace silently
-bind = $mainMod Alt, 1, movetoworkspacesilent, 1
-bind = $mainMod Alt, 2, movetoworkspacesilent, 2
-bind = $mainMod Alt, 3, movetoworkspacesilent, 3
-bind = $mainMod Alt, 4, movetoworkspacesilent, 4
-bind = $mainMod Alt, 5, movetoworkspacesilent, 5
-bind = $mainMod Alt, 6, movetoworkspacesilent, 6
-bind = $mainMod Alt, 7, movetoworkspacesilent, 7
-bind = $mainMod Alt, 8, movetoworkspacesilent, 8
-bind = $mainMod Alt, 9, movetoworkspacesilent, 9
-bind = $mainMod Alt, 0, movetoworkspacesilent, 10
-
-# Move window to relative workspace
-bind = $mainMod Control+Alt, Right, movetoworkspace, r+1
-bind = $mainMod Control+Alt, Left, movetoworkspace, r-1
-
-# Scratchpad / Special workspace
-bind = $mainMod Shift, S, movetoworkspace, special
-bind = $mainMod Alt, S, movetoworkspacesilent, special
-bind = $mainMod, S, togglespecialworkspace
-
 # Scroll workspaces
 bind = $mainMod, mouse_down, workspace, e+1
 bind = $mainMod, mouse_up, workspace, e-1
 
-# Window rules
+# --- Window & Layer Rules ---
 windowrulev2 = float, class:^(Alacritty)$
 windowrulev2 = center, class:^(Alacritty)$
 windowrulev2 = size 500 780, class:^(Alacritty)$
@@ -396,154 +431,521 @@ windowrulev2 = rounding 22, class:^(Alacritty)$
 windowrulev2 = opacity 0.9 0.9, class:^(firefox)$
 windowrulev2 = opacity 0.9 0.9, class:^(zen-alpha)$
 
-# Layer rules
 layerrule = blur, wofi
 layerrule = ignorezero, wofi
+EOF
+
+    # Append NVIDIA specific environment variables if needed
+    if [ "$NVIDIA_INSTALL" = "true" ]; then
+        print_nvidia "Adding NVIDIA environment variables to hyprland.conf"
+        cat >> "$TEMP_DIR/hyprland.conf" << EOF
+
+# --- NVIDIA Specific Environment Variables ---
+env = LIBVA_DRIVER_NAME,nvidia
+env = GBM_BACKEND,nvidia-drm
+env = __GLX_VENDOR_LIBRARY_NAME,nvidia
+EOF
+    fi
+}
+
+create_custom_waybar_style() {
+    print_msg "Creating custom transparent waybar style..."
+    
+    cat > "$TEMP_DIR/waybar-style.css" << 'EOF'
+/* Group Styles */
+
+/* Pill Styles */
+@import "groups/pill.css";
+@import "groups/pill-up.css";
+@import "groups/pill-right.css";
+@import "groups/pill-down.css";
+@import "groups/pill-left.css";
+@import "groups/pill-in.css";
+@import "groups/pill-out.css";
+/* Leaf Style */
+@import "groups/leaf.css";
+@import "groups/leaf-inverse.css";
+
+/* Dynamic Stuff */
+@import "../../../../.config/waybar/includes/border-radius.css";
+@import "../../../../.config/waybar/includes/global.css";
+
+/* Base HyDE Styles with global font properties */
+
+* {
+    font-family: "OpenSans", "Open Sans", sans-serif;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+window#waybar {
+    background: transparent; /* fully transparent background */
+    border-radius: 0px; /* seamless - no rounded corners */
+    border: none; /* no border for seamless look */
+    box-shadow: none; /* no shadow for seamless look */
+    font-size: 1.1em; /* slightly larger for main bar */
+    transition: background 0.3s ease; /* smooth transitions */
+}
+
+/* Reactive states - keep transparent but could add subtle effects */
+window#waybar:hover {
+    background: transparent;
+}
+
+window#waybar.focused {
+    background: transparent;
+}
+
+/* Groups / Islands - Make them transparent */
+
+#leaf,
+#leaf-inverse,
+#leaf-up,
+#leaf-down,
+#leaf-right,
+#leaf-left,
+#pill,
+#pill-right,
+#pill-left,
+#pill-down,
+#pill-up,
+#pill-in,
+#pill-out {
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+}
+
+/* Workspaces Buttons - Light mode with transparency */
+
+#workspaces button {
+    box-shadow: none;
+    text-shadow: 0 0 2px rgba(255, 255, 255, 0.6);
+    padding: 0em 0.3em;
+    margin: 0.3em 0;
+    color: #333333;
+    animation: ws_normal 20s ease-in-out 1;
+    background-color: rgba(255, 255, 255, 0.4);
+    border-radius: 8px;
+}
+
+#workspaces button.active {
+    background-color: rgba(255, 255, 255, 0.7);
+    color: #000000;
+    margin-left: 0.3em;
+    padding-left: 1.2em;
+    padding-right: 1.2em;
+    margin-right: 0.3em;
+    animation: ws_active 20s ease-in-out 1;
+    transition: all 0.4s cubic-bezier(.55, -0.68, .48, 1.682);
+}
+
+#workspaces button:hover {
+    background-color: rgba(255, 255, 255, 0.6);
+    color: #111111;
+    animation: ws_hover 20s ease-in-out 1;
+    transition: all 0.3s cubic-bezier(.55, -0.68, .48, 1.682);
+}
+
+/* Taskbar Buttons - Make transparent */
+
+#taskbar button {
+    box-shadow: none;
+    text-shadow: 0 0 2px rgba(255, 255, 255, 0.6);
+    padding: 0em 0.3em;
+    margin: 0.3em 0;
+    color: #333333;
+    animation: tb_normal 20s ease-in-out 1;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+}
+
+#taskbar button.active {
+    background: transparent;
+    color: #000000;
+    margin-left: 0.3em;
+    padding-left: 1.2em;
+    padding-right: 1.2em;
+    margin-right: 0.3em;
+    animation: tb_active 20s ease-in-out 1;
+    transition: all 0.4s cubic-bezier(.55, -0.68, .48, 1.682);
+}
+
+#taskbar button:hover {
+    background: transparent;
+    color: #111111;
+    animation: tb_hover 20s ease-in-out 1;
+    transition: all 0.3s cubic-bezier(.55, -0.68, .48, 1.682);
+}
+
+/* All modules - light text */
+#battery,
+#backlight,
+#clock,
+#cpu,
+#memory,
+#temperature,
+#network,
+#pulseaudio,
+#custom-weather,
+#custom-power,
+#custom-cava,
+#custom-hyde-menu,
+#custom-hyprsunset,
+#idle_inhibitor,
+#tray {
+    color: #333333;
+    background: transparent;
+    padding: 0 0.5em;
+}
+
+/* Workspaces & Taskbar Containers */
+#workspaces,
+#taskbar {
+    padding: 0em;
+}
+
+/* Modules Padding */
+window#waybar.top .modules-left,
+window#waybar.top .modules-center,
+window#waybar.top .modules-right,
+window#waybar.bottom .modules-left,
+window#waybar.bottom .modules-center,
+window#waybar.bottom .modules-right {
+    padding-left: 0.3em;
+    padding-right: 0.3em;
+    margin-left: 0.3em;
+    margin-right: 0.3em;
+}
+
+window#waybar.top label.module,
+window#waybar.bottom label.module {
+    padding-left: 0.2em;
+    padding-right: 0.2em;
+    margin-left: 0.2em;
+    margin-right: 0.2em;
+}
+
+
+/* Leaves & Pills Padding for Side Bars */
+window#waybar.right #leaf,
+window#waybar.left #leaf,
+window#waybar.right #leaf-inverse,
+window#waybar.left #leaf-inverse,
+window#waybar.right #leaf-up,
+window#waybar.left #leaf-up,
+window#waybar.right #leaf-down,
+window#waybar.left #leaf-down,
+window#waybar.right #leaf-right,
+window#waybar.left #leaf-right,
+window#waybar.right #leaf-left,
+window#waybar.left #leaf-left,
+window#waybar.right #pill,
+window#waybar.left #pill,
+window#waybar.right #pill-right,
+window#waybar.left #pill-right,
+window#waybar.right #pill-left,
+window#waybar.left #pill-left,
+window#waybar.right #pill-down,
+window#waybar.left #pill-down,
+window#waybar.right #pill-up,
+window#waybar.left #pill-up,
+window#waybar.right #pill-in,
+window#waybar.left #pill-in,
+window#waybar.right #pill-out,
+window#waybar.left #pill-out {
+    padding: 0em;
+}
+
+window#waybar.bottom #leaf,
+window#waybar.bottom #leaf-inverse,
+window#waybar.bottom #leaf-up,
+window#waybar.bottom #leaf-down,
+window#waybar.bottom #leaf-right,
+window#waybar.bottom #leaf-left,
+window#waybar.bottom #pill,
+window#waybar.bottom #pill-right,
+window#waybar.bottom #pill-left,
+window#waybar.bottom #pill-down,
+window#waybar.bottom #pill-up,
+window#waybar.bottom #pill-in,
+window#waybar.bottom #pill-out,
+window#waybar.top #leaf,
+window#waybar.top #leaf-inverse,
+window#waybar.top #leaf-up,
+window#waybar.top #leaf-down,
+window#waybar.top #leaf-right,
+window#waybar.top #leaf-left,
+window#waybar.top #pill,
+window#waybar.top #pill-right,
+window#waybar.top #pill-left,
+window#waybar.top #pill-down,
+window#waybar.top #pill-up,
+window#waybar.top #pill-in,
+window#waybar.top #pill-out {
+    padding: 0em 1em;
+}
+
+/* Dynamic Buttons Margin */
+window#waybar.top button,
+window#waybar.bottom button {
+    margin: 0.41em 0.11em;
+    border: 0em;
+}
+
+window#waybar.left button,
+window#waybar.right button {
+    margin: 0.11em 0.41em;
+    border: 0em;
+}
+
+/* Tooltips - light mode */
+tooltip {
+    background-color: rgba(255, 255, 255, 0.95);
+    color: #333333;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+/* Tray Menu - clean and simple */
+#tray menu * {
+    min-height: 1.6em;
+}
+
+#tray menu separator {
+    min-height: 0.1em;
+}
+
+/* Language Button */
+#language {
+    min-width: 1.11em;
+}
+EOF
+}
+
+create_custom_waybar_config() {
+    print_msg "Creating custom waybar configuration..."
+    
+    cat > "$TEMP_DIR/waybar-config.json" << 'EOF'
+{
+    "layer": "top",
+    "output": [
+        "*"
+    ],
+    "height": 10,
+    "exclusive": true,
+    "passthrough": false,
+    "reload_style_on_change": true,
+    "include": [
+        "$XDG_CONFIG_HOME/waybar/modules/*json*", 
+        "$XDG_CONFIG_HOME/waybar/includes/includes.json" 
+    ],
+    "modules-left": [
+        "group/pill#left"
+    ],
+    "group/pill#left": {
+        "orientation": "inherit",
+        "modules": [
+            "hyprland/workspaces"
+        ]
+    },
+    "modules-center": [
+        "group/pill#center"
+    ],
+    "group/pill#center": {
+        "orientation": "inherit",
+        "modules": [
+            "custom/cava",
+            "clock",
+            "custom/weather"
+        ]
+    },
+    "modules-right": [
+        "group/pill#right"
+    ],
+    "group/pill#right": {
+        "orientation": "inherit",
+        "modules": [
+            "battery",
+            "backlight",
+            "tray",
+            "custom/power",
+            "idle_inhibitor",
+            "custom/hyprsunset",
+            "custom/hyde-menu"
+        ]
+    },
+    "custom/weather": {
+        "exec": "curl -s 'https://wttr.in/Timișoara?format=1' | sed 's/+//; s/°C/°/'",
+        "interval": 600,
+        "return-type": "",
+        "format": " {}",
+        "tooltip": false
+    },
+    "clock": {
+        "format": "{:%H:%M}",
+        "tooltip-format": "{:%A, %B %d, %Y - %H:%M:%S}",
+        "interval": 1
+    },
+    "battery": {
+        "format": "{capacity}%",
+        "format-charging": "{capacity}%",
+        "format-plugged": "{capacity}%",
+        "format-critical": "{capacity}%",
+        "states": {
+            "warning": 30,
+            "critical": 15
+        }
+    },
+    "backlight": {
+        "format": "{percent}%",
+        "on-scroll-up": "brightnessctl s 5%+",
+        "on-scroll-down": "brightnessctl s 5%-"
+    }
+}
 EOF
 }
 
 clone_dotfiles() {
     print_msg "Cloning E-ink dotfiles from GitLab..."
-    
-    # Clean up any existing temp dir
     rm -rf "$TEMP_DIR"
     mkdir -p "$TEMP_DIR"
     
-    git clone "$REPO_URL" "$TEMP_DIR/eink-dots"
-    
-    if [ ! -d "$TEMP_DIR/eink-dots" ]; then
-        print_error "Failed to clone dotfiles repository"
+    if git clone "$REPO_URL" "$TEMP_DIR/eink-dots"; then
+        print_success "Dotfiles cloned successfully."
+    else
+        print_error "Failed to clone dotfiles repository from $REPO_URL"
         exit 1
     fi
-    
-    print_success "Dotfiles cloned successfully"
 }
 
 deploy_configs() {
-    print_msg "Deploying configs..."
+    print_msg "Deploying configuration files..."
     
-    # List of configs to deploy from the repo
-    local configs=(
-        "waybar"
-        "wofi"
-        "alacritty"
-        "ghostty"
-        "helix"
-        "mpv"
+    local dotfiles_root="$TEMP_DIR/eink-dots"
+    # Determine if configs are in a 'config' subdirectory or at the root
+    local config_source_dir="$dotfiles_root/config"
+    if [ ! -d "$config_source_dir" ]; then
+        config_source_dir="$dotfiles_root"
+    fi
+
+    # List of configs to deploy
+    local configs_to_deploy=(
+        "waybar" "wofi" "alacritty" "ghostty" "helix" "mpv" "dunst"
     )
     
-    # Backup existing configs
-    for cfg in "${configs[@]}" hypr wallpapers; do
+    # Backup existing configs first
+    for cfg in "${configs_to_deploy[@]}" "hypr" "wallpapers"; do
         backup_config "$cfg"
     done
     
-    # Deploy configs from repo (except hyprland)
-    for cfg in "${configs[@]}"; do
-        if [ -d "$TEMP_DIR/eink-dots/config/$cfg" ]; then
-            print_msg "Installing $cfg config..."
-            cp -r "$TEMP_DIR/eink-dots/config/$cfg" "$CONFIG_DIR/"
-        elif [ -d "$TEMP_DIR/eink-dots/$cfg" ]; then
-            print_msg "Installing $cfg..."
-            mkdir -p "$CONFIG_DIR/$cfg"
-            cp -r "$TEMP_DIR/eink-dots/$cfg/"* "$CONFIG_DIR/$cfg/" 2>/dev/null || true
+    # Deploy configs from repo
+    for cfg in "${configs_to_deploy[@]}"; do
+        if [ "$cfg" = "waybar" ]; then
+            # Special handling for waybar - deploy from repo first, then overwrite
+            if [ -d "$config_source_dir/$cfg" ]; then
+                print_msg "Deploying base waybar config from repository..."
+                cp -r "$config_source_dir/$cfg" "$CONFIG_DIR/"
+            fi
+            # Now overwrite with custom transparent style and config
+            print_msg "Applying custom transparent waybar configuration..."
+            create_custom_waybar_style
+            create_custom_waybar_config
+            cp "$TEMP_DIR/waybar-style.css" "$CONFIG_DIR/waybar/style.css"
+            cp "$TEMP_DIR/waybar-config.json" "$CONFIG_DIR/waybar/config.json"
+        elif [ -d "$config_source_dir/$cfg" ]; then
+            print_msg "Deploying '$cfg' config..."
+            cp -r "$config_source_dir/$cfg" "$CONFIG_DIR/"
+        else
+            print_warning "Config for '$cfg' not found in repository, skipping."
         fi
     done
     
     # Deploy custom hyprland config
-    print_msg "Installing custom Hyprland config..."
+    print_msg "Installing custom Hyprland config with Colemak DH..."
     mkdir -p "$CONFIG_DIR/hypr"
-    
-    # Create the custom hyprland.conf
-    create_custom_hyprland_conf
+    create_custom_hyprland_conf # Generates the file in TEMP_DIR
     cp "$TEMP_DIR/hyprland.conf" "$CONFIG_DIR/hypr/hyprland.conf"
     
-    # Copy any hypr scripts if they exist
-    if [ -d "$TEMP_DIR/eink-dots/config/hypr/scripts" ]; then
-        cp -r "$TEMP_DIR/eink-dots/config/hypr/scripts" "$CONFIG_DIR/hypr/"
+    # Copy scripts for hyprland
+    if [ -d "$config_source_dir/hypr/scripts" ]; then
+        cp -r "$config_source_dir/hypr/scripts" "$CONFIG_DIR/hypr/"
         chmod +x "$CONFIG_DIR/hypr/scripts/"*.sh 2>/dev/null || true
     fi
     
-    # Create wf-toggle-recorder.sh if it doesn't exist
-    if [ ! -f "$CONFIG_DIR/hypr/scripts/wf-toggle-recorder.sh" ]; then
-        mkdir -p "$CONFIG_DIR/hypr/scripts"
-        cat > "$CONFIG_DIR/hypr/scripts/wf-toggle-recorder.sh" << 'RECORDER_EOF'
+    # Create a default screen recorder script if it doesn't exist
+    local recorder_script="$CONFIG_DIR/hypr/scripts/wf-toggle-recorder.sh"
+    if [ ! -f "$recorder_script" ]; then
+        mkdir -p "$(dirname "$recorder_script")"
+        cat > "$recorder_script" << 'REC_EOF'
 #!/bin/bash
 if pgrep -x "wf-recorder" > /dev/null; then
     pkill -INT wf-recorder
-    notify-send "Recording" "Stopped"
+    notify-send "Screen Recording" "Stopped."
 else
-    wf-recorder -f ~/Videos/recording_$(date +%Y%m%d_%H%M%S).mp4 &
-    notify-send "Recording" "Started"
+    mkdir -p "$HOME/Videos/Recordings"
+    wf-recorder -f "$HOME/Videos/Recordings/rec_$(date +%Y%m%d_%H%M%S).mp4" &
+    notify-send "Screen Recording" "Started. Press Ctrl+P again to stop."
 fi
-RECORDER_EOF
-        chmod +x "$CONFIG_DIR/hypr/scripts/wf-toggle-recorder.sh"
+REC_EOF
+        chmod +x "$recorder_script"
     fi
     
-    print_success "Configs deployed"
+    print_success "All configs deployed successfully."
 }
 
 setup_wallpapers() {
     print_msg "Setting up wallpapers..."
-    
     mkdir -p "$CONFIG_DIR/wallpapers"
     
-    # Copy wallpapers from the repo
+    local wallpaper_source
     if [ -d "$TEMP_DIR/eink-dots/wallpapers" ]; then
-        print_msg "Copying wallpapers from repo..."
-        cp -r "$TEMP_DIR/eink-dots/wallpapers/"* "$CONFIG_DIR/wallpapers/" 2>/dev/null || true
-        
-        # Check if eink.jpg exists, if not, use the first wallpaper found
-        if [ ! -f "$CONFIG_DIR/wallpapers/eink.jpg" ]; then
-            print_warning "eink.jpg not found, looking for alternatives..."
-            # Try to find any wallpaper and create a symlink
-            for ext in jpg jpeg png; do
-                for file in "$CONFIG_DIR/wallpapers/"*.$ext; do
-                    if [ -f "$file" ]; then
-                        print_msg "Creating symlink to $(basename "$file")"
-                        ln -sf "$(basename "$file")" "$CONFIG_DIR/wallpapers/eink.jpg"
-                        break 2
-                    fi
-                done
-            done
-        fi
+        wallpaper_source="$TEMP_DIR/eink-dots/wallpapers"
     elif [ -d "$TEMP_DIR/eink-dots/config/wallpapers" ]; then
-        print_msg "Copying wallpapers from config/wallpapers..."
-        cp -r "$TEMP_DIR/eink-dots/config/wallpapers/"* "$CONFIG_DIR/wallpapers/" 2>/dev/null || true
+        wallpaper_source="$TEMP_DIR/eink-dots/config/wallpapers"
     fi
     
-    # Final check for wallpaper
+    if [ -n "$wallpaper_source" ]; then
+        cp -r "$wallpaper_source/"* "$CONFIG_DIR/wallpapers/" 2>/dev/null || true
+    fi
+    
     if [ -f "$CONFIG_DIR/wallpapers/eink.jpg" ]; then
-        print_success "Wallpaper ready: eink.jpg"
+        print_success "Default wallpaper 'eink.jpg' is ready."
     else
-        print_warning "No wallpaper found! You may need to add one manually to ~/.config/wallpapers/eink.jpg"
+        print_warning "Default wallpaper 'eink.jpg' not found."
+        # Fallback: symlink the first found image to eink.jpg
+        local first_wallpaper=$(find "$CONFIG_DIR/wallpapers" -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \) -print -quit)
+        if [ -n "$first_wallpaper" ]; then
+            ln -sf "$(basename "$first_wallpaper")" "$CONFIG_DIR/wallpapers/eink.jpg"
+            print_msg "Symlinked '$(basename "$first_wallpaper")' to 'eink.jpg' as a fallback."
+        else
+            print_error "No wallpapers found! You must add one to ~/.config/wallpapers/eink.jpg for swaybg to work."
+        fi
     fi
 }
 
 cleanup() {
-    print_msg "Cleaning up..."
+    print_msg "Cleaning up temporary files..."
     rm -rf "$TEMP_DIR"
 }
 
 main() {
     clear
     echo -e "${CYAN}"
-    echo "╔════════════════════════════════════╗"
-    echo "║  E-ink Dotfiles Installer          ║"
-    echo "║  (Custom Hyprland + GitLab dots)   ║"
-    echo "╚════════════════════════════════════╝"
+    echo "╔════════════════════════════════════════════╗"
+    echo "║        E-ink Dotfiles Installer            ║"
+    echo "║  (Colemak DH + Transparent Waybar)         ║"
+    echo "╚════════════════════════════════════════════╝"
     echo -e "${RC}"
-    echo ""
     
     check_root
-    
-    # Trap to ensure cleanup on exit
     trap cleanup EXIT
     
-    print_msg "Starting fresh Arch installation setup..."
-    echo ""
-    
     install_chaotic_aur
-    install_packages
+    install_hardware_support # Install drivers and enable services first
+    install_packages         # Installs core software (with NVIDIA variant if selected)
     install_aur_packages
     clone_dotfiles
     deploy_configs
@@ -552,11 +954,20 @@ main() {
     echo ""
     print_success "Installation complete!"
     if [ -d "$BACKUP_DIR" ]; then
-        print_msg "Backups saved to: $BACKUP_DIR"
+        print_msg "Your old configs were backed up to: $BACKUP_DIR"
     fi
     echo ""
-    print_warning "Please reboot or restart Hyprland to apply all changes"
-    print_msg "Run 'Hyprland' from TTY to start the session"
+    print_msg "Keyboard layout is set to Colemak DH"
+    print_msg "Waybar has been configured with transparent theme"
+    print_warning "A REBOOT is strongly recommended to apply all changes, especially kernel modules."
+    if [ "$NVIDIA_INSTALL" = "true" ]; then
+        echo -e "${YELLOW}############################## NVIDIA POST-INSTALL ##############################${RC}"
+        print_nvidia "NVIDIA drivers have been installed and configured."
+        print_warning "If you have issues booting, you may need to add 'nvidia_drm.modeset=1' to your bootloader's kernel parameters manually."
+        echo -e "${YELLOW}###################################################################################${RC}"
+    fi
+    echo ""
+    print_msg "After rebooting, start the session by typing 'Hyprland' in a TTY and pressing Enter."
     echo ""
 }
 
