@@ -4,6 +4,8 @@
 # E-ink Dotfiles Installation Script (Enhanced)
 # - Custom hyprland.conf with eink dots
 # - Added NVIDIA, Network & Bluetooth support
+# - Added PulseAudio and pavucontrol
+# - Increased gap between waybar and windows
 # - Colemak DH layout
 # - Uses waybar configuration from repository
 ###################################################
@@ -134,6 +136,12 @@ install_packages() {
         # Wayland tools
         waybar wofi swaybg grim slurp wf-recorder wl-clipboard
         
+        # Audio system
+        pulseaudio
+        pulseaudio-alsa
+        pulseaudio-bluetooth
+        pavucontrol
+        
         # Notification daemon
         dunst libnotify
         
@@ -159,6 +167,12 @@ install_packages() {
     sudo pacman -S --needed --noconfirm ghostty 2>/dev/null || print_warning "Ghostty not in official repos, will try AUR later."
     
     print_success "Core packages installed."
+    
+    # Enable and start PulseAudio for the user
+    print_hardware "Configuring PulseAudio..."
+    systemctl --user enable pulseaudio.service
+    systemctl --user enable pulseaudio.socket
+    print_success "PulseAudio configured for user session."
 }
 
 install_aur_packages() {
@@ -195,9 +209,9 @@ install_aur_packages() {
 }
 
 create_custom_hyprland_conf() {
-    print_msg "Creating custom hyprland.conf with Colemak DH layout..."
+    print_msg "Creating custom hyprland.conf with Colemak DH layout and increased gaps..."
     
-    # Base config with updated input section
+    # Base config with updated input section and larger gaps_out for more space from waybar
     cat > "$TEMP_DIR/hyprland.conf" << 'EOF'
 #############################################
 # E-ink Glass - Modified with HyDE keybinds
@@ -228,6 +242,7 @@ exec-once = /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
 exec-once = nm-applet --indicator
 exec-once = waybar
 exec-once = dunst
+exec-once = blueman-applet
 
 # --- Variables ---
 $terminal = alacritty
@@ -260,7 +275,7 @@ gestures {
 # --- General & Decoration ---
 general {
     gaps_in = 8
-    gaps_out = 16
+    gaps_out = 28    # Increased from 16 to give more space between waybar and windows
     border_size = 1
     col.active_border = rgba(333333cc)
     col.inactive_border = rgba(33333377)
@@ -355,6 +370,7 @@ bind = $mainMod, T, exec, $terminal
 bind = $mainMod, E, exec, $fileManager
 bind = $mainMod, F, exec, $browser
 bind = $mainMod, R, exec, localsend
+bind = $mainMod, V, exec, pavucontrol
 bind = $mainMod, A, exec, wofi --show drun --prompt "" --location center --width 600
 bind = Control Shift, Escape, exec, $terminal -e htop
 
@@ -423,6 +439,11 @@ windowrulev2 = size 500 780, class:^(Alacritty)$
 windowrulev2 = rounding 22, class:^(Alacritty)$
 windowrulev2 = opacity 0.9 0.9, class:^(firefox)$
 windowrulev2 = opacity 0.9 0.9, class:^(zen-alpha)$
+
+# Pavucontrol window rules
+windowrulev2 = float, class:^(pavucontrol)$
+windowrulev2 = center, class:^(pavucontrol)$
+windowrulev2 = size 800 600, class:^(pavucontrol)$
 
 layerrule = blur, wofi
 layerrule = ignorezero, wofi
@@ -566,7 +587,7 @@ main() {
     
     install_chaotic_aur
     install_hardware_support # Install drivers and enable services first
-    install_packages         # Installs core software
+    install_packages         # Installs core software including PulseAudio
     install_aur_packages
     clone_dotfiles
     deploy_configs
@@ -580,6 +601,8 @@ main() {
     echo ""
     print_msg "Keyboard layout is set to Colemak DH"
     print_msg "Waybar configuration deployed from repository"
+    print_msg "PulseAudio and pavucontrol installed - Use Super+V to open volume control"
+    print_msg "Gap between waybar and windows increased to 28 pixels"
     print_warning "A REBOOT is strongly recommended to apply all changes, especially kernel modules."
     if [ "$NVIDIA_INSTALL" = "true" ]; then
         echo -e "${YELLOW}############################## NVIDIA POST-INSTALL ##############################${RC}"
