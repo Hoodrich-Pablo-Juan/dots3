@@ -1,10 +1,14 @@
-@define-color foreground #eeeeee;
-@define-color foreground-inactive #aaaaaa;
-@define-color background #000000;
+@define-color foreground #000000;
+@define-color foreground-dim #333333;
+@define-color foreground-inactive #666666;
+@define-color background rgba(255, 255, 255, 0.7);
+@define-color background-alt rgba(255, 255, 255, 0.5);
+@define-color border rgba(0, 0, 0, 0.1);
 
 * {
     font-family: JetBrainsMono Nerd Font;
     font-size: 17px;
+    font-weight: 600;
     padding: 0;
     margin: 0;
 }
@@ -12,28 +16,57 @@
 #waybar {
     color: @foreground;
     background-color: @background;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid @border;
 }
 
 #workspaces button {
+    color: @foreground-dim;
+    padding: 0 0.7em;
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+}
+
+#workspaces button:hover {
+    background-color: rgba(0, 0, 0, 0.05);
     color: @foreground;
-    padding-left: 0.7em;
+}
+
+#workspaces button.active {
+    color: @foreground;
+    background-color: rgba(0, 0, 0, 0.08);
+    font-weight: 700;
 }
 
 #workspaces button.empty {
     color: @foreground-inactive;
 }
 
-#memory,
-#custom-platform-profile {
-    padding-left: 1em
+#workspaces button.urgent {
+    background-color: rgba(255, 0, 0, 0.2);
+    color: @foreground;
 }
 
-#wireplumber,
+/* Individual module styling */
+#clock,
 #battery,
+#cpu,
+#memory,
+#temperature,
+#network,
+#wireplumber,
+#bluetooth,
 #idle_inhibitor,
 #language,
-#network,
-#bluetooth,
-#tray {
-    padding-right: 1em 
+#tray,
+#custom-platform-profile {
+    padding: 0 0.8em;
+    background-color: transparent;
+    color: @foreground;
 }
+
+/* Add subtle separators between modules */
+#clock {
+    
