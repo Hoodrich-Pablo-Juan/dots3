@@ -1,21 +1,20 @@
 {
     "layer": "top",
     "position": "top",
-    "height": 24,
-    "spacing": 5,
+    "height": 28,
+    "spacing": 0,
 
-    "modules-left": ["hyprland/workspaces", "temperature"],
-    "modules-center": ["clock"],
+    "modules-left": ["hyprland/workspaces"],
+    "modules-center": ["clock", "custom/separator", "custom/weather"],
     "modules-right": ["wireplumber", "battery", "hyprland/language", "idle_inhibitor", "network", "bluetooth", "tray"],
 
     "hyprland/workspaces": {
         "format": "<span size='larger'>{icon}</span>",
         "on-click": "activate",
         "format-icons": {
-            "active": "\uf444",
-            "default": "\uf4c3"
+            "active": "●",
+            "default": "○"
         },
-        "icon-size": 10,
         "sort-by-number": true,
         "persistent-workspaces": {
             "1": [],
@@ -27,11 +26,24 @@
     },
 
     "clock": {
-        "format": "{:%d.%m.%Y | %H:%M}"
+        "format": "{:%H:%M}",
+        "tooltip-format": "{:%A, %d %B %Y}"
+    },
+
+    "custom/separator": {
+        "format": "|",
+        "tooltip": false
+    },
+
+    "custom/weather": {
+        "format": "{}",
+        "exec": "curl -sf 'wttr.in/Timisoara?format=%c+%t' || echo 'N/A'",
+        "interval": 900
     },
 
     "wireplumber": {
-        "format": "\udb81\udd7e  {volume}%",
+        "format": "vol {volume}%",
+        "format-muted": "vol muted",
         "max-volume": 100,
         "scroll-step": 5
     },
@@ -39,66 +51,46 @@
     "battery": {
         "bat": "BAT0",
         "interval": 60,
-        "format": "{icon}  {capacity}%",
-        "format-icons": ["\uf244", "\uf243", "\uf242", "\uf241", "\uf240"]
-    },
-
-    "memory": {
-        "interval": 30,
-        "format": "\uf4bc  {used:0.1f}G"
-    },
-
-    "temperature": {
-        "format": "{temperatureC}°C"
+        "format": "bat  {capacity}%",
+        "format-charging": "bat+ {capacity}%",
+        "format-full": "bat✓ {capacity}%"
     },
 
     "network": {
-        "format": "",
-        "format-ethernet": "\udb83\udc9d",
-        "format-wifi": "{icon}",
-        "format-disconnected": "\udb83\udc9c",
-        "format-icons": ["\udb82\udd2f", "\udb82\udd1f", "\udb82\udd22", "\udb82\udd25", "\udb82\udd28"],
+        "format": "net",
+        "format-ethernet": "eth",
+        "format-wifi": "wifi",
+        "format-disconnected": "net✗",
         "tooltip-format-wifi": "{essid} ({signalStrength}%)",
         "tooltip-format-ethernet": "{ifname}",
         "tooltip-format-disconnected": "Disconnected"
     },
 
     "bluetooth": {
-        "format": "\udb80\udcaf",
-        "format-disabled": "\udb80\udcb2",
-        "format-connected": "\udb80\udcb1",
+        "format": "bt",
+        "format-disabled": "bt✗",
+        "format-connected": "bt✓",
         "tooltip-format": "{controller_alias}\t{controller_address}",
         "tooltip-format-connected": "{controller_alias}\t{controller_address}\n\n{device_enumerate}",
         "tooltip-format-enumerate-connected": "{device_alias}\t{device_address}"
     },
 
     "hyprland/language": {
-        "format": "{short}"
+        "format": "{}",
+        "format-en": "en",
+        "format-ro": "ro"
     },
 
     "tray": {
-        "icon-size": 16,
-        "spacing": 16
-    },
-
-    "custom/platform-profile": {
-        "format": "{icon} ",
-        "exec": "~/.config/waybar/platform_profile.sh",
-        "return-type": "json",
-        "restart-interval": 1,
-        "format-icons": {
-            "quiet": "\udb80\udf2a",
-            "balanced": "\udb80\ude10",
-            "performance": "\uf427",
-            "default": "?"
-        }
+        "icon-size": 14,
+        "spacing": 10
     },
 
     "idle_inhibitor": {
         "format": "{icon}",
         "format-icons": {
-            "activated": "\udb80\udd76",
-            "deactivated": "\udb83\udfaa"
+            "activated": "idle✗",
+            "deactivated": "idle"
         }
     }
 }
