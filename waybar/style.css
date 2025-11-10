@@ -69,4 +69,107 @@
 
 /* Add subtle separators between modules */
 #clock {
-    
+    font-weight: 700;
+    padding: 0 1em;
+}
+
+#battery.charging {
+    color: @foreground;
+    font-weight: 700;
+}
+
+#battery.critical:not(.charging) {
+    background-color: rgba(255, 0, 0, 0.2);
+    color: @foreground;
+    animation: blink 0.5s linear infinite alternate;
+}
+
+@keyframes blink {
+    to {
+        background-color: rgba(255, 0, 0, 0.3);
+    }
+}
+
+#network.disconnected {
+    color: @foreground-inactive;
+}
+
+#wireplumber.muted {
+    color: @foreground-inactive;
+    text-decoration: line-through;
+}
+
+#bluetooth.connected {
+    color: @foreground;
+    font-weight: 700;
+}
+
+#bluetooth.disabled {
+    color: @foreground-inactive;
+}
+
+#idle_inhibitor.activated {
+    background-color: rgba(0, 0, 0, 0.08);
+    color: @foreground;
+}
+
+#temperature.critical {
+    background-color: rgba(255, 0, 0, 0.2);
+}
+
+#tray {
+    padding-right: 1em;
+}
+
+#tray > .passive {
+    -gtk-icon-effect: dim;
+}
+
+#tray > .needs-attention {
+    -gtk-icon-effect: highlight;
+}
+
+/* Hover effects for interactive modules */
+#clock:hover,
+#battery:hover,
+#network:hover,
+#wireplumber:hover,
+#bluetooth:hover,
+#idle_inhibitor:hover,
+#language:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Module group styling for visual separation */
+.modules-left {
+    background-color: transparent;
+    padding-left: 0.5em;
+}
+
+.modules-center {
+    background-color: rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    margin: 4px 0;
+}
+
+.modules-right {
+    background-color: transparent;
+    padding-right: 0.5em;
+}
+
+/* Tooltip styling */
+tooltip {
+    background-color: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid @border;
+    border-radius: 8px;
+    padding: 8px;
+    color: @foreground;
+}
+
+tooltip label {
+    color: @foreground;
+    font-size: 14px;
+    font-weight: 500;
+}
