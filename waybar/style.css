@@ -1,14 +1,13 @@
-@define-color foreground #000000;
-@define-color foreground-dim #333333;
-@define-color foreground-inactive #666666;
-@define-color background rgba(255, 255, 255, 0.7);
-@define-color background-alt rgba(255, 255, 255, 0.5);
-@define-color border rgba(0, 0, 0, 0.1);
+@define-color foreground #1a1a1a;
+@define-color foreground-dim #4a4a4a;
+@define-color foreground-inactive #808080;
+@define-color background rgba(240, 240, 240, 0.5);
+@define-color border rgba(0, 0, 0, 0.08);
 
 * {
-    font-family: JetBrainsMono Nerd Font;
-    font-size: 17px;
-    font-weight: 600;
+    font-family: 'Google Sans', 'Product Sans', 'Noto Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 300;
     padding: 0;
     margin: 0;
 }
@@ -16,28 +15,49 @@
 #waybar {
     color: @foreground;
     background-color: @background;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-bottom: 1px solid @border;
+    border: none;
+}
+
+#workspaces,
+#clock,
+#custom-weather,
+#custom-separator,
+#battery,
+#network,
+#wireplumber,
+#bluetooth,
+#idle_inhibitor,
+#language,
+#tray {
+    padding: 0 12px;
+    background-color: transparent;
+    color: @foreground;
+    font-weight: 300;
+}
+
+#workspaces {
+    padding-left: 12px;
 }
 
 #workspaces button {
     color: @foreground-dim;
-    padding: 0 0.7em;
+    padding: 0 10px;
     background-color: transparent;
     border: none;
     border-radius: 0;
+    min-width: 0;
+    font-weight: 300;
 }
 
 #workspaces button:hover {
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: rgba(0, 0, 0, 0.03);
     color: @foreground;
 }
 
 #workspaces button.active {
     color: @foreground;
-    background-color: rgba(0, 0, 0, 0.08);
-    font-weight: 700;
+    background-color: rgba(0, 0, 0, 0.05);
+    font-weight: 400;
 }
 
 #workspaces button.empty {
@@ -45,53 +65,37 @@
 }
 
 #workspaces button.urgent {
-    background-color: rgba(255, 0, 0, 0.2);
+    background-color: rgba(220, 50, 47, 0.15);
     color: @foreground;
 }
 
-/* Individual module styling */
-#clock,
-#battery,
-#cpu,
-#memory,
-#temperature,
-#network,
-#wireplumber,
-#bluetooth,
-#idle_inhibitor,
-#language,
-#tray,
-#custom-platform-profile {
-    padding: 0 0.8em;
-    background-color: transparent;
-    color: @foreground;
-}
-
-/* Add subtle separators between modules */
+/* Center modules - clock, separator, weather */
 #clock {
-    font-weight: 700;
-    padding: 0 1em;
+    font-weight: 300;
+    font-size: 15px;
+    padding-right: 8px;
 }
 
-#battery.charging {
-    color: @foreground;
-    font-weight: 700;
+#custom-separator {
+    color: @foreground-dim;
+    padding: 0 8px;
+    font-weight: 200;
 }
 
-#battery.critical:not(.charging) {
-    background-color: rgba(255, 0, 0, 0.2);
-    color: @foreground;
-    animation: blink 0.5s linear infinite alternate;
+#custom-weather {
+    font-weight: 300;
+    padding-left: 8px;
+    font-size: 14px;
 }
 
-@keyframes blink {
-    to {
-        background-color: rgba(255, 0, 0, 0.3);
-    }
+#custom-weather:hover {
+    background-color: rgba(0, 0, 0, 0.03);
 }
 
-#network.disconnected {
-    color: @foreground-inactive;
+/* Right modules with minimalist text icons */
+#wireplumber {
+    padding: 0 12px;
+    font-weight: 300;
 }
 
 #wireplumber.muted {
@@ -99,37 +103,78 @@
     text-decoration: line-through;
 }
 
-#bluetooth.connected {
-    color: @foreground;
-    font-weight: 700;
+#battery {
+    padding: 0 12px;
+    font-weight: 300;
+}
+
+#battery.charging {
+    font-weight: 400;
+}
+
+#battery.critical:not(.charging) {
+    background-color: rgba(220, 50, 47, 0.15);
+    color: #dc322f;
+    animation: blink 0.5s linear infinite alternate;
+}
+
+@keyframes blink {
+    to {
+        background-color: rgba(220, 50, 47, 0.25);
+    }
+}
+
+#network {
+    padding: 0 12px;
+    font-weight: 300;
+}
+
+#network.disconnected {
+    color: @foreground-inactive;
+}
+
+#bluetooth {
+    padding: 0 12px;
+    font-weight: 300;
 }
 
 #bluetooth.disabled {
     color: @foreground-inactive;
 }
 
-#idle_inhibitor.activated {
-    background-color: rgba(0, 0, 0, 0.08);
-    color: @foreground;
+#bluetooth.connected {
+    font-weight: 400;
 }
 
-#temperature.critical {
-    background-color: rgba(255, 0, 0, 0.2);
+#idle_inhibitor {
+    padding: 0 12px;
+    font-weight: 300;
+}
+
+#idle_inhibitor.activated {
+    background-color: rgba(0, 0, 0, 0.05);
+    font-weight: 400;
+}
+
+#language {
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 300;
 }
 
 #tray {
-    padding-right: 1em;
+    padding-right: 12px;
 }
 
 #tray > .passive {
-    -gtk-icon-effect: dim;
+    opacity: 0.6;
 }
 
 #tray > .needs-attention {
-    -gtk-icon-effect: highlight;
+    opacity: 1;
 }
 
-/* Hover effects for interactive modules */
+/* Hover effects */
 #clock:hover,
 #battery:hover,
 #network:hover,
@@ -137,39 +182,20 @@
 #bluetooth:hover,
 #idle_inhibitor:hover,
 #language:hover {
-    background-color: rgba(0, 0, 0, 0.05);
-}
-
-/* Module group styling for visual separation */
-.modules-left {
-    background-color: transparent;
-    padding-left: 0.5em;
-}
-
-.modules-center {
-    background-color: rgba(255, 255, 255, 0.3);
-    border-radius: 12px;
-    margin: 4px 0;
-}
-
-.modules-right {
-    background-color: transparent;
-    padding-right: 0.5em;
+    background-color: rgba(0, 0, 0, 0.03);
 }
 
 /* Tooltip styling */
 tooltip {
-    background-color: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background-color: rgba(250, 250, 250, 0.95);
     border: 1px solid @border;
-    border-radius: 8px;
-    padding: 8px;
+    border-radius: 6px;
+    padding: 8px 12px;
     color: @foreground;
 }
 
 tooltip label {
     color: @foreground;
-    font-size: 14px;
-    font-weight: 500;
+    font-size: 13px;
+    font-weight: 300;
 }
