@@ -3,152 +3,75 @@
     "position": "top",
     "height": 30,
     "spacing": 5,
-    "margin-bottom":-11,
+    "margin-bottom": -11,
     "modules-left": ["hyprland/workspaces"],
-    "modules-right": ["network","tray","battery","custom/ss","custom/cycle_wall","custom/expand","cpu","clock"],
-    "modules-center": ["custom/dynamic_pill"],
-
+    "modules-right": ["network", "custom/bluetooth", "uptime", "custom/weather", "custom/ss", "custom/cycle_wall", "custom/expand", "clock"],
+    "modules-center": ["custom/dynamic_pill", "custom/countdown"],
+    
+    "network": {
+        "format": "",
+        "format-ethernet": "󰈀",
+        "format-disconnected": "󰖪",
+        "tooltip-format-wifi": "{essid} ({signalStrength}%)",
+        "on-click": "nm-connection-editor"
+    },
+    "custom/bluetooth": {
+        "format": "{}",
+        "return-type": "json",
+        "exec": "if bluetoothctl show | grep -q 'Powered: yes'; then if bluetoothctl devices Connected | grep -q 'Device'; then echo '{\"text\": \"\", \"class\": \"connected\"}'; else echo '{\"text\": \"󰂯\", \"class\": \"on\"}'; fi; else echo '{\"text\": \"󰂲\", \"class\": \"off\"}'; fi",
+        "on-click": "blueman-manager",
+        "interval": 5
+    },
+    
     "custom/dynamic_pill": {
         "return-type": "json",
         "exec": "~/.config/hypr/scripts/tools/start_dyn",
-        "escape":true
+        "escape": true
     },
-    "custom/ss":{
-        "format":"{}",
-        "exec":"~/.config/hypr/scripts/tools/expand ss-icon",
+    "custom/ss": {
+        "format": "{}",
+        "exec": "~/.config/hypr/scripts/tools/expand ss-icon",
         "on-click": "~/.config/hypr/scripts/screenshot_full"
     },
-    "custom/cycle_wall":{
-        "format":"{}",
+    "custom/cycle_wall": {
+        "format": "{}",
         "exec": "~/.config/hypr/scripts/tools/expand wall",
         "on-click": "~/.config/hypr/scripts/tools/expand cycle"
     },
-    "custom/expand":{
-        "on-click":"~/.config/hypr/scripts/expand_toolbar",
-        "format":"{}",
-        "exec":"~/.config/hypr/scripts/tools/expand arrow-icon"
-    },
-    "keyboard-state": {
-        "numlock": true,
-        "capslock": true,
-        "format": "{name} {icon}",
-        "format-icons": {
-            "locked": "",
-            "unlocked": ""
-        }
+    "custom/expand": {
+        "on-click": "~/.config/hypr/scripts/expand_toolbar",
+        "format": "{}",
+        "exec": "~/.config/hypr/scripts/tools/expand arrow-icon"
     },
     "hyprland/workspaces": {
         "format": "{icon}",
         "format-active": " {icon} ",
         "on-click": "activate",
-        "persistent-workspaces": {
-            "1": [],
-            "2": [],
-            "3": [],
-            "4": []
-          }
+        "persistent-workspaces": { "1": [], "2": [], "3": [], "4": [] }
     },
-    "sway/mode": {
-        "format": "<span style=\"italic\">{}</span>"
+    "uptime": {
+        "format": "󰚰 {h}h {m}m",
+        "tooltip": false
     },
-    "mpd": {
-        "format": "{stateIcon} {consumeIcon}{randomIcon}{repeatIcon}{singleIcon}{artist} - {album} - {title} ({elapsedTime:%M:%S}/{totalTime:%M:%S}) ⸨{songPosition}|{queueLength}⸩ {volume}% ",
-        "format-disconnected": "Disconnected ",
-        "format-stopped": "{consumeIcon}{randomIcon}{repeatIcon}{singleIcon}Stopped ",
-        "unknown-tag": "N/A",
-        "interval": 2,
-        "consume-icons": {
-            "on": " "
-        },
-        "random-icons": {
-            "off": "<span color=\"#f53c3c\"></span> ",
-            "on": " "
-        },
-        "repeat-icons": {
-            "on": " "
-        },
-        "single-icons": {
-            "on": "1 "
-        },
-        "state-icons": {
-            "paused": "",
-            "playing": ""
-        },
-        "tooltip-format": "MPD (connected)",
-        "tooltip-format-disconnected": "MPD (disconnected)"
+    "custom/countdown": {
+        "return-type": "json",
+        "format": "{}",
+        "exec": "now=$(date +%s); target=$(date -d '22:00' +%s); if [ \"$now\" -gt \"$target\" ]; then target=$(date -d 'tomorrow 22:00' +%s); fi; remaining=$((target - now)); hours=$((remaining / 3600)); minutes=$(((remaining % 3600) / 60)); printf '{\"text\": \"󰔟 %dh %dm\"}' \"$hours\" \"$minutes\"",
+        "interval": 60,
+        "tooltip": false
     },
-    "idle_inhibitor": {
-        "format": "{icon}",
-        "format-icons": {
-            "activated": "",
-            "deactivated": ""
-        }
-    },
-    "tray": {
-        "spacing": 10
+    "custom/weather": {
+        "format": "{}",
+        "tooltip": true,
+        "exec": "curl -s 'wttr.in?format=%C+%t'",
+        "interval": 3600
     },
     "clock": {
         "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>",
         "interval": 60,
-        "format": "{:%H:%M}",
-        "max-length": 25
+        "format": "{:%H:%M}"
     },
-    "cpu": {
-        "interval":1,
-        "format": "{icon0} {icon1} {icon2} {icon3}",
-        "format-icons": ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"]
-    },
-    "memory": {
-        "format": "{}% "
-    },
-    "backlight": {
-        "format": "{percent}% {icon}",
-        "format-icons": ["", "", "", "", "", "", "", "", ""]
-    },
-    "battery": {
-        "states": {
-            "warning": 50,
-            "critical": 20
-        },
-        "format": "{icon}",
-        "format-charging": "",
-        "format-plugged": "",
-        "format-icons": ["", "", "", "", ""]
-    },
-    "battery#bat2": {
-        "bat": "BAT2"
-    },
-    "network": {
-        "format-wifi": "",
-        "format-ethernet": "",
-        "format-linked": "",
-        "format-disconnected": "wifi"
-    },
-    "pulseaudio": {
-        "format": "{format_source}",
-        "format-bluetooth": "{volume}% {icon} {format_source}",
-        "format-bluetooth-muted": " {icon} {format_source}",
-        "format-muted": " {format_source}",
-        "format-icons": {
-            "headphone": "",
-            "hands-free": "",
-            "headset": "",
-            "phone": "",
-            "portable": "",
-            "car": "",
-            "default": ["", "", ""]
-        },
-        "on-click": "pavucontrol"
-    },
-    "custom/media": {
-        "format": "{icon} {}",
-        "return-type": "json",
-        "max-length": 40,
-        "format-icons": {
-            "spotify": "",
-            "default": "🎜"
-        },
-        "escape": true,
-        "exec": "$HOME/.config/waybar/mediaplayer.py 2> /dev/null"
+    "tray": {
+        "spacing": 10
     }
 }
