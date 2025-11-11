@@ -1,7 +1,7 @@
 /* Waybar Style Configuration - Minimalist Grayscale Theme */
 
 * {
-    font-family: 'Inter', 'Roboto', 'Open Sans', sans-serif;
+    font-family: 'Inter', 'FiraCode Nerd Font', 'Roboto', 'Open Sans', sans-serif;
     font-size: 13px;
     font-weight: 300;
     border: none;
@@ -13,15 +13,8 @@ window#waybar {
     background-color: transparent;
 }
 
+/* --- Base styling for VISIBLE pills --- */
 #clock,
-#battery,
-#cpu,
-#memory,
-#disk,
-#temperature,
-#backlight,
-#network,
-#pulseaudio,
 #custom-media,
 #tray,
 #mode,
@@ -31,7 +24,9 @@ window#waybar {
 #custom-ss,
 #custom-dynamic_pill,
 #custom-weather,
-#mpd {
+#mpd,
+#uptime,
+#custom\/countdown {
     padding: 0 10px;
     border-radius: 15px;
     background: #ffffff;
@@ -44,25 +39,29 @@ window#waybar {
     box-shadow: none;
 }
 
-#custom-dynamic_pill label {
-    color: #111827;
-    font-weight: 300;
+/* --- INVISIBLE PILLS FOR CONNECTIVITY ICONS --- */
+#network, #custom-bluetooth {
+    background: transparent; /* Makes the pill background disappear */
+    padding: 0 5px; /* Minimal spacing so icons don't touch */
+    margin-top: 10px;
+    margin-bottom: 10px;
+    margin-right: 0px;
 }
 
-#custom-dynamic_pill.paused label {
-    color: #4b5563;
-    font-weight: 300; 
+/* --- UPDATED ICON COLORS --- */
+#network.wifi, #network.ethernet, #custom-bluetooth.connected, #custom-bluetooth.on {
+    color: #111827; /* Black for active state */
 }
+#network.disconnected, #custom-bluetooth.off {
+    color: #4b5563; /* Dark gray for inactive state */
+}
+/* --- END OF INVISIBLE PILL STYLING --- */
 
-#workspaces button label{
-    color: #374151;
-    font-weight: 300;
-}
 
-#workspaces button.active label{
-    color: #ffffff;
-    font-weight: 300;
-}
+#custom-dynamic_pill label { color: #111827; }
+#custom-dynamic_pill.paused label { color: #4b5563; }
+#workspaces button label { color: #374151; }
+#workspaces button.active label { color: #ffffff; }
 
 #workspaces{
     background-color: transparent;
@@ -79,18 +78,7 @@ window#waybar {
     padding: 10px;
     padding-top: 4px;
     padding-bottom: 2px;
-    font-weight: 300;
-    color: #374151;
     transition: all 0.5s cubic-bezier(.55,-0.68,.48,1.68);
-    border: none;
-    box-shadow: none;
-    outline: none;
-}
-
-#workspaces button:hover{
-    box-shadow: none;
-    border: none;
-    outline: none;
 }
 
 #workspaces button.active{
@@ -99,118 +87,21 @@ window#waybar {
     padding-bottom: 3px;
     background: linear-gradient(45deg, #111827 0%, #1f2937 20%, #374151 40%, #4b5563 60%, #374151 80%, #111827 100%);
     background-size: 400% 400%;
-    background-clip: padding-box;
-    border: none;
-    box-shadow: none;
-    outline: none;
+    color: #ffffff;
     animation: gradient_f 20s ease-in-out infinite;
     transition: all 0.3s cubic-bezier(.55,-0.68,.48,1.682);
-    color: #ffffff;
 }
 
-@keyframes gradient {
-    0% {
-        background-position: 0% 50%;
-    }
-    50% {
-        background-position: 100% 30%;
-    }
-    100% {
-        background-position: 0% 50%;
-    }
-}
+@keyframes gradient_f { 0% { background-position: 0% 200%; } 50% { background-position: 200% 0%; } 100% { background-position: 400% 200%; } }
 
-@keyframes gradient_f {
-    0% {
-        background-position: 0% 200%;
-    }
-    50% {
-        background-position: 200% 0%;
-    }
-    100% {
-        background-position: 400% 200%;
-    }
-}
-
-@keyframes gradient_f_nh {
-    0% {
-        background-position: 0% 200%;
-    }
-    100% {
-        background-position: 200% 200%;
-    }
-}
-
-#custom-dynamic_pill.low{
-    background: linear-gradient(52deg, #d1d5db 0%, #9ca3af 30%, #6b7280 60%, #d1d5db 100%);
-    background-size: 300% 300%;
-    animation: gradient 15s ease infinite;
-    font-weight: 300;
-    color: #111827;
-}
-
-#custom-dynamic_pill.normal{
-    background: linear-gradient(52deg, #9ca3af 0%, #6b7280 35%, #4b5563 70%, #9ca3af 100%);
-    background-size: 400% 400%;
-    animation: gradient_f 4s ease infinite;
-    font-weight: 300;
-    color: #ffffff;
-}
-
-#custom-dynamic_pill.critical{
-    background: linear-gradient(52deg, #1f2937 0%, #111827 30%, #000000 48%, #111827 77%, #1f2937 100%);
-    background-size: 300% 300%;
-    animation: gradient 15s cubic-bezier(.55,-0.68,.48,1.68) infinite;
-    font-weight: 300;
-    color: #ffffff;
-}
-
-#custom-dynamic_pill.playing{
-    background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 25%, #e5e7eb 50%, #d1d5db 75%, #ffffff 100%);
-    background-size: 400% 400%;
-    animation: gradient_f 9s cubic-bezier(.72,.39,.21,1) infinite;
-    font-weight: 300;
-    color: #1f2937;
-}
-
-#custom-dynamic_pill.paused{
-    background: #ffffff;
-    font-weight: 300;
-    color: #4b5563;
-}
-
-#custom-ss{
-    background: #f3f4f6;
-    color: #374151;
-    font-weight: 300;
-    padding: 5px;
-    padding-left: 20px;
-    padding-right: 20px;
-    border-radius: 15px;
-}
-
-#custom-cycle_wall{
-    background: linear-gradient(45deg, #111827 0%, #374151 25%, #6b7280 50%, #374151 75%, #111827 100%);
-    color: #ffffff;
-    background-size: 500% 500%;
-    animation: gradient 7s linear infinite;
-    font-weight: 300;
-    border-radius: 15px;
-}
-
+/* Other module styles... */
+#custom-ss { background: #f3f4f6; padding: 5px 20px; }
+#custom-cycle_wall { background: linear-gradient(45deg, #111827 0%, #374151 25%, #6b7280 50%, #374151 75%, #111827 100%); color: #ffffff; background-size: 500% 500%; animation: gradient 7s linear infinite; }
 #custom-weather {
-    background: #f3f4f6;
-    color: #374151;
-    font-weight: 300;
-    padding: 5px 15px;
-    border-radius: 15px;
-    margin-right: 10px;
+      background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
 }
-
-#clock label{
-    color: #111827;
-    font-weight: 300;
-}
+#uptime { background-color: #e5e7eb; color: #1f2937; }
+#custom\/countdown { background-color: #d1d5db; color: #1f2937; }
 
 #clock {
     background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
@@ -219,140 +110,7 @@ window#waybar {
     margin-right: 25px;
     color: #111827;
     font-size: 14px;
-    padding-top: 5px;
-    padding-right: 21px;
-    font-weight: 300;
-    padding-left: 20px;
+    padding: 5px 21px 5px 20px;
 }
 
-#battery.charging, #battery.plugged {
-    background-color: #d1d5db;
-    color: #1f2937;
-}
-
-#battery {
-    background-color: #ffffff;
-    color: #374151;
-    font-weight: 300;
-    font-size: 20px;
-    padding-left: 15px;
-    padding-right: 15px;
-}
-
-@keyframes blink {
-    to {
-        background-color: #111827;
-        color: #ffffff;
-    }
-}
-
-#battery.critical:not(.charging) {
-    background-color: #1f2937;
-    color: #ffffff;
-    animation-name: blink;
-    animation-duration: 0.5s;
-    animation-timing-function: linear;
-    animation-iteration-count: infinite;
-    animation-direction: alternate;
-}
-
-#cpu label{
-    color: #4b5563;
-}
-
-#cpu {
-    background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%);
-    color: #374151;
-}
-
-#memory {
-    background-color: #e5e7eb;
-    color: #1f2937;
-    font-weight: 300;
-}
-
-#disk {
-    color: #374151;
-}
-
-#backlight {
-    color: #4b5563;
-}
-
-#network{
-    color: #1f2937;
-    font-weight: 300;
-    padding: 5px 15px;
-}
-
-#network.disabled{
-    background-color: #d1d5db;
-}
-
-#network.disconnected{
-    background: linear-gradient(45deg, #374151 0%, #111827 100%);
-    color: #ffffff;
-    font-weight: 300;
-    padding-top: 3px;
-    padding-right: 11px;
-}
-
-#network.linked, #network.wifi{
-    background-color: #e5e7eb;
-    color: #1f2937;
-}
-
-#network.ethernet{
-    background-color: #f3f4f6;
-    color: #374151;
-}
-
-#pulseaudio {
-    background-color: #d1d5db;
-    color: #1f2937;
-    font-weight: 300;
-}
-
-#pulseaudio.muted {
-    background-color: #9ca3af;
-    color: #f3f4f6;
-}
-
-#custom-media {
-    color: #374151;
-}
-
-#custom-media.custom-spotify {
-    background-color: #374151;
-    color: #ffffff;
-}
-
-#custom-media.custom-vlc {
-    background-color: #4b5563;
-    color: #ffffff;
-}
-
-#temperature {
-    background-color: #f3f4f6;
-    color: #374151;
-}
-
-#temperature.critical {
-    background-color: #111827;
-    color: #ffffff;
-}
-
-#tray {
-    background-color: #f3f4f6;
-    color: #374151;
-    padding: 5px 10px;
-}
-
-#tray > .passive {
-    -gtk-icon-effect: dim;
-}
-
-#tray > .needs-attention {
-    -gtk-icon-effect: highlight;
-    background-color: #111827;
-}``
+#tray { background-color: #f3f4f6; padding: 5px 10px; }
