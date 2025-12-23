@@ -3,7 +3,9 @@
 ###################################################
 # E-ink Dotfiles Installation Script (Enhanced)
 # - Custom hyprland.conf with eink dots
-# - Added NVIDIA, Network & Bluetooth support
+# - NVIDIA Open drivers (590+) support
+# - Auto-login with getty + Hyprland launch
+# - Network & Bluetooth support
 # - PipeWire audio stack with WirePlumber
 # - Custom frosted waybar with black icons
 # - Increased gap between waybar and windows
@@ -27,6 +29,7 @@ TEMP_DIR="/tmp/eink-dots-$$"
 EINK_REPO_URL="https://gitlab.com/dotfiles_hypr/eink.git"
 CUSTOM_REPO_URL="https://github.com/Hoodrich-Pablo-Juan/dots3.git"
 NVIDIA_INSTALL="false" # Flag to track NVIDIA installation
+CURRENT_USER="$USER"
 
 # --- Messaging Functions ---
 print_msg() { echo -e "${CYAN}[E-ink]${RC} $1"; }
@@ -95,34 +98,35 @@ install_hardware_support() {
     print_success "NetworkManager and Bluetooth services enabled."
 
     echo ""
-    read -p "$(echo -e ${YELLOW}"[?] Do you want to install NVIDIA drivers for Hyprland? (y/N): "${RC})" -n 1 -r REPLY
+    read -p "$(echo -e ${YELLOW}"[?] Do you want to install NVIDIA Open drivers (590+) for Hyprland? (y/N): "${RC})" -n 1 -r REPLY
     echo
     if [[ "$REPLY" =~ ^[Yy]$ ]]; then
         NVIDIA_INSTALL="true"
-        print_nvidia "Proceeding with NVIDIA driver installation."
+        print_nvidia "Proceeding with NVIDIA Open driver installation."
         local nvidia_pkgs=(
-            nvidia-dkms            # NVIDIA driver with DKMS for kernel compatibility
+            nvidia-open-dkms       # NVIDIA Open driver with DKMS
             nvidia-utils           # NVIDIA driver utilities
             lib32-nvidia-utils     # 32-bit NVIDIA utilities (for gaming)
             nvidia-settings        # NVIDIA settings GUI
+            egl-wayland            # EGL external platform for Wayland
         )
         sudo pacman -S --needed --noconfirm "${nvidia_pkgs[@]}"
 
-        print_nvidia "Configuring kernel modules for NVIDIA..."
+        print_nvidia "Configuring kernel modules for NVIDIA Open..."
         if ! grep -q "nvidia" /etc/mkinitcpio.conf; then
             sudo sed -i 's/^MODULES=()/MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)/' /etc/mkinitcpio.conf
             print_nvidia "Added NVIDIA modules to mkinitcpio.conf."
         else
-            print_nvidia "NVIDIA modules already seem to be in mkinitcpio.conf."
+            print_nvidia "NVIDIA modules already configured in mkinitcpio.conf."
         fi
         
         print_nvidia "Creating modprobe configuration for KMS..."
-        echo "options nvidia_drm modeset=1" | sudo tee /etc/modprobe.d/nvidia.conf
+        echo "options nvidia_drm modeset=1 fbdev=1" | sudo tee /etc/modprobe.d/nvidia.conf
         
         print_nvidia "Rebuilding initramfs (this may take a moment)..."
         sudo mkinitcpio -P
         
-        print_success "NVIDIA base configuration complete."
+        print_success "NVIDIA Open driver configuration complete."
     else
         print_msg "Skipping NVIDIA driver installation."
     fi
@@ -367,6 +371,64 @@ setup_wallpapers() {
     fi
 }
 
+setup_auto_login() {
+    print_msg "Setting up auto-login with getty..."
+    
+    echo ""
+    read -p "$(echo -e ${YELLOW}"[?] Do you want to set up auto-login to TTY1 with Hyprland auto-start? (y/N): "${RC})" -n 1 -r REPLY
+    echo
+    
+    if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
+        print_msg "Skipping auto-login setup."
+        return
+    fi
+    
+    # Create systemd override directory for getty@tty1
+    print_msg "Configuring getty@tty1 for auto-login..."
+    sudo mkdir -p /etc/systemd/system/getty@tty1.service.d/
+    
+    # Create override configuration
+    cat << EOF | sudo tee /etc/systemd/system/getty@tty1.service.d/autologin.conf > /dev/null
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty -o '-p -f -- \\u' --noclear --autologin $CURRENT_USER %I \$TERM
+EOF
+    
+    print_success "Getty auto-login configured for user: $CURRENT_USER"
+    
+    # Add Hyprland auto-start to shell profile
+    print_msg "Adding Hyprland auto-start to shell profile..."
+    
+    # Determine which shell profile to use
+    local shell_profile=""
+    if [ -f "$HOME/.bash_profile" ]; then
+        shell_profile="$HOME/.bash_profile"
+    elif [ -f "$HOME/.zprofile" ]; then
+        shell_profile="$HOME/.zprofile"
+    else
+        shell_profile="$HOME/.bash_profile"
+        touch "$shell_profile"
+    fi
+    
+    # Check if auto-start is already configured
+    if grep -q "# Hyprland auto-start on TTY1" "$shell_profile" 2>/dev/null; then
+        print_warning "Hyprland auto-start already configured in $shell_profile"
+    else
+        # Add Hyprland auto-start script
+        cat << 'EOF' >> "$shell_profile"
+
+# Hyprland auto-start on TTY1
+if [ -z "$DISPLAY" ] && [ "$XDG_VTNR" -eq 1 ]; then
+    exec Hyprland
+fi
+EOF
+        print_success "Hyprland auto-start added to $shell_profile"
+    fi
+    
+    print_success "Auto-login setup complete!"
+    print_msg "After reboot, you will be automatically logged in to TTY1 and Hyprland will start."
+}
+
 verify_audio_setup() {
     print_audio "Verifying audio setup..."
     
@@ -415,10 +477,12 @@ print_post_install() {
     if [ "$NVIDIA_INSTALL" = "true" ]; then
         echo ""
         echo -e "${YELLOW}╔════════════════════════════════════════════════════════════╗${RC}"
-        echo -e "${YELLOW}║                      NVIDIA SETUP                             ║${RC}"
+        echo -e "${YELLOW}║                   NVIDIA OPEN DRIVERS                        ║${RC}"
         echo -e "${YELLOW}╚════════════════════════════════════════════════════════════╝${RC}"
-        print_nvidia "NVIDIA drivers installed and configured."
-        print_warning "You may need to add 'nvidia_drm.modeset=1' to your bootloader."
+        print_nvidia "NVIDIA Open drivers (590+) installed and configured."
+        print_nvidia "Kernel modules configured for direct rendering and KMS."
+        print_warning "Ensure 'nvidia_drm.modeset=1' is in your bootloader parameters."
+        print_msg "For GRUB, edit /etc/default/grub and add to GRUB_CMDLINE_LINUX_DEFAULT"
     fi
     
     echo ""
@@ -439,8 +503,14 @@ print_post_install() {
     echo -e "${YELLOW}╚════════════════════════════════════════════════════════════╝${RC}"
     echo ""
     print_warning "1. REBOOT YOUR SYSTEM to apply all changes"
-    print_warning "2. After reboot, log into a TTY (Ctrl+Alt+F2)"
-    print_warning "3. Type 'Hyprland' and press Enter to start the session"
+    
+    if grep -q "# Hyprland auto-start on TTY1" "$HOME/.bash_profile" 2>/dev/null || \
+       grep -q "# Hyprland auto-start on TTY1" "$HOME/.zprofile" 2>/dev/null; then
+        print_success "2. After reboot, you will auto-login to TTY1 and Hyprland will start automatically!"
+    else
+        print_warning "2. After reboot, log into a TTY (Ctrl+Alt+F2)"
+        print_warning "3. Type 'Hyprland' and press Enter to start the session"
+    fi
     echo ""
 }
 
@@ -453,7 +523,8 @@ main() {
     echo "║  • Colemak DH Layout                                        ║"
     echo "║  • Frosted Waybar with Black Icons                          ║"
     echo "║  • PipeWire Audio Stack                                     ║"
-    echo "║  • NVIDIA Support (Optional)                                ║"
+    echo "║  • NVIDIA Open Drivers (590+)                               ║"
+    echo "║  • Auto-login with Getty                                    ║"
     echo "╚════════════════════════════════════════════════════════════╝"
     echo -e "${RC}"
     echo ""
@@ -469,6 +540,7 @@ main() {
     clone_dotfiles
     deploy_configs
     setup_wallpapers
+    setup_auto_login
     verify_audio_setup
     
     # Print post-installation information
