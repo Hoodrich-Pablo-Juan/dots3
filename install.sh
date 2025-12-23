@@ -10,6 +10,7 @@
 # - Custom frosted waybar with black icons
 # - Increased gap between waybar and windows
 # - Colemak DH layout
+# - hy3 plugin via hyprpm
 ###################################################
 
 set -e
@@ -39,6 +40,7 @@ print_warning() { echo -e "${YELLOW}[!]${RC} $1"; }
 print_hardware() { echo -e "${BLUE}[HARDWARE]${RC} $1"; }
 print_nvidia() { echo -e "${BLUE}[NVIDIA]${RC} $1"; }
 print_audio() { echo -e "${BLUE}[AUDIO]${RC} $1"; }
+print_plugin() { echo -e "${BLUE}[PLUGIN]${RC} $1"; }
 
 check_root() {
     if [ "$EUID" -eq 0 ]; then
@@ -159,6 +161,9 @@ install_packages() {
         # Core system
         base-devel git curl wget lz4
         
+        # hyprpm dependencies (for building plugins)
+        cmake meson cpio pkg-config gcc
+        
         # Core Hyprland
         hyprland hyprpaper hyprpicker xdg-desktop-portal-hyprland
         
@@ -235,7 +240,7 @@ install_aur_packages() {
     local aur_packages=(
         zen-browser-bin
         localsend-bin
-        hy3-git    # i3-style window management for Hyprland
+        # NOTE: hy3-git removed - we use hyprpm instead for better compatibility
     )
     
     # Try ghostty from AUR if it wasn't installed from other repos
@@ -251,6 +256,39 @@ install_aur_packages() {
     else
         print_msg "No additional AUR packages to install."
     fi
+}
+
+install_hy3_plugin() {
+    print_plugin "Installing hy3 plugin via hyprpm..."
+    
+    # Initialize hyprpm if needed
+    print_plugin "Updating hyprpm and Hyprland headers..."
+    hyprpm update || {
+        print_error "Failed to update hyprpm. Make sure Hyprland is installed correctly."
+        return 1
+    }
+    
+    # Check if hy3 is already added
+    if hyprpm list 2>/dev/null | grep -q "hy3"; then
+        print_plugin "hy3 repository already added, updating..."
+        hyprpm update
+    else
+        print_plugin "Adding hy3 repository..."
+        echo "y" | hyprpm add https://github.com/outfoxxed/hy3 || {
+            print_error "Failed to add hy3 repository."
+            return 1
+        }
+    fi
+    
+    # Enable the plugin
+    print_plugin "Enabling hy3 plugin..."
+    hyprpm enable hy3 || {
+        print_error "Failed to enable hy3 plugin."
+        return 1
+    }
+    
+    print_success "hy3 plugin installed and enabled via hyprpm."
+    print_msg "The plugin will be loaded automatically by Hyprland."
 }
 
 clone_dotfiles() {
@@ -733,7 +771,7 @@ print_post_install() {
     echo ""
     echo -e "${GREEN}Features Installed:${RC}"
     echo "  ✓ Hyprland with Colemak DH keyboard layout"
-    echo "  ✓ hy3 plugin for i3-style automatic tiling"
+    echo "  ✓ hy3 plugin via hyprpm (auto-built for your Hyprland version)"
     echo "  ✓ hyprsunset for warm color temperature (3400K)"
     echo "  ✓ Frosted waybar with black icons and blur effect"
     echo "  ✓ PipeWire audio system with WirePlumber"
@@ -755,6 +793,13 @@ print_post_install() {
         print_warning "Ensure 'nvidia_drm.modeset=1' is in your bootloader parameters."
         print_msg "For GRUB, edit /etc/default/grub and add to GRUB_CMDLINE_LINUX_DEFAULT"
     fi
+    
+    echo ""
+    echo -e "${CYAN}Plugin Management:${RC}"
+    echo "  hyprpm list          → List installed plugins"
+    echo "  hyprpm update        → Update plugins after Hyprland update"
+    echo "  hyprpm disable hy3   → Disable hy3 plugin"
+    echo "  hyprpm enable hy3    → Enable hy3 plugin"
     
     echo ""
     echo -e "${CYAN}Keybindings:${RC}"
@@ -779,13 +824,14 @@ print_post_install() {
     echo -e "${YELLOW}╚════════════════════════════════════════════════════════════╝${RC}"
     echo ""
     print_warning "1. REBOOT YOUR SYSTEM to apply all changes"
+    print_warning "2. After Hyprland updates, run: hyprpm update"
     
     if grep -q "# Hyprland auto-start on TTY1" "$HOME/.bash_profile" 2>/dev/null || \
        grep -q "# Hyprland auto-start on TTY1" "$HOME/.zprofile" 2>/dev/null; then
-        print_success "2. After reboot, you will auto-login to TTY1 and Hyprland will start automatically!"
+        print_success "3. After reboot, you will auto-login to TTY1 and Hyprland will start automatically!"
     else
-        print_warning "2. After reboot, log into a TTY (Ctrl+Alt+F2)"
-        print_warning "3. Type 'Hyprland' and press Enter to start the session"
+        print_warning "3. After reboot, log into a TTY (Ctrl+Alt+F2)"
+        print_warning "4. Type 'Hyprland' and press Enter to start the session"
     fi
     echo ""
 }
@@ -801,6 +847,7 @@ main() {
     echo "║  • PipeWire Audio Stack                                     ║"
     echo "║  • NVIDIA Open Drivers (590+)                               ║"
     echo "║  • Auto-login with Getty                                    ║"
+    echo "║  • hy3 plugin via hyprpm                                    ║"
     echo "╚════════════════════════════════════════════════════════════╝"
     echo -e "${RC}"
     echo ""
@@ -816,6 +863,7 @@ main() {
     clone_dotfiles
     deploy_configs
     setup_wallpapers
+    install_hy3_plugin    # Install hy3 via hyprpm after configs are deployed
     setup_zen_extensions
     setup_auto_login
     verify_audio_setup
