@@ -106,12 +106,32 @@ install_hardware_support() {
         NVIDIA_INSTALL="true"
         print_nvidia "Proceeding with NVIDIA Open driver installation."
         
-        local nvidia_pkgs=(
-            nvidia-open-dkms       # NVIDIA Open driver with DKMS
-            nvidia-utils           # NVIDIA driver utilities
-            nvidia-settings        # NVIDIA settings GUI
-            egl-wayland            # EGL external platform for Wayland
-        )
+        # Check if nvidia-open (non-DKMS) is already installed
+        if pacman -Qi nvidia-open &>/dev/null; then
+            print_nvidia "nvidia-open already installed, using existing installation."
+            local nvidia_pkgs=(
+                nvidia-utils           # NVIDIA driver utilities
+                nvidia-settings        # NVIDIA settings GUI
+                egl-wayland            # EGL external platform for Wayland
+            )
+        elif pacman -Qi nvidia-open-dkms &>/dev/null; then
+            print_nvidia "nvidia-open-dkms already installed, using existing installation."
+            local nvidia_pkgs=(
+                nvidia-utils           # NVIDIA driver utilities
+                nvidia-settings        # NVIDIA settings GUI
+                egl-wayland            # EGL external platform for Wayland
+            )
+        else
+            # Fresh install - prefer nvidia-open (simpler, no DKMS rebuild on kernel updates)
+            print_nvidia "Installing nvidia-open driver..."
+            local nvidia_pkgs=(
+                nvidia-open            # NVIDIA Open driver (non-DKMS)
+                nvidia-utils           # NVIDIA driver utilities
+                nvidia-settings        # NVIDIA settings GUI
+                egl-wayland            # EGL external platform for Wayland
+            )
+        fi
+        
         sudo pacman -S --needed --noconfirm "${nvidia_pkgs[@]}"
 
         print_nvidia "Configuring kernel modules for NVIDIA Open..."
@@ -129,7 +149,6 @@ install_hardware_support() {
         sudo mkinitcpio -P
         
         print_success "NVIDIA Open driver configuration complete."
-        print_msg "Note: 32-bit libraries skipped. Install lib32-nvidia-utils manually if needed for 32-bit games."
     else
         print_msg "Skipping NVIDIA driver installation."
     fi
