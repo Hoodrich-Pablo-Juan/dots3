@@ -106,30 +106,6 @@ install_hardware_support() {
         NVIDIA_INSTALL="true"
         print_nvidia "Proceeding with NVIDIA Open driver installation."
         
-        # Remove any conflicting legacy NVIDIA packages first
-        print_nvidia "Checking for conflicting NVIDIA packages..."
-        local legacy_nvidia_pkgs=(
-            nvidia-390xx-utils
-            lib32-nvidia-390xx-utils
-            nvidia-470xx-utils
-            lib32-nvidia-470xx-utils
-            nvidia-utils-390xx
-            lib32-nvidia-utils-390xx
-        )
-        
-        local installed_legacy=()
-        for pkg in "${legacy_nvidia_pkgs[@]}"; do
-            if pacman -Qi "$pkg" &>/dev/null; then
-                installed_legacy+=("$pkg")
-            fi
-        done
-        
-        if [ ${#installed_legacy[@]} -gt 0 ]; then
-            print_nvidia "Removing legacy NVIDIA packages: ${installed_legacy[*]}"
-            sudo pacman -Rns --noconfirm "${installed_legacy[@]}" 2>/dev/null || true
-        fi
-        
-        # Install NVIDIA Open drivers (core packages only, no lib32 initially)
         local nvidia_pkgs=(
             nvidia-open-dkms       # NVIDIA Open driver with DKMS
             nvidia-utils           # NVIDIA driver utilities
@@ -137,15 +113,6 @@ install_hardware_support() {
             egl-wayland            # EGL external platform for Wayland
         )
         sudo pacman -S --needed --noconfirm "${nvidia_pkgs[@]}"
-        
-        # Try to install 32-bit utils separately (optional, for gaming)
-        print_nvidia "Attempting to install 32-bit NVIDIA utilities (optional)..."
-        if sudo pacman -S --needed --noconfirm lib32-nvidia-utils 2>/dev/null; then
-            print_success "32-bit NVIDIA utilities installed."
-        else
-            print_warning "Could not install lib32-nvidia-utils. This is only needed for 32-bit games."
-            print_warning "You can try installing it manually later if needed."
-        fi
 
         print_nvidia "Configuring kernel modules for NVIDIA Open..."
         if ! grep -q "nvidia" /etc/mkinitcpio.conf; then
@@ -162,6 +129,7 @@ install_hardware_support() {
         sudo mkinitcpio -P
         
         print_success "NVIDIA Open driver configuration complete."
+        print_msg "Note: 32-bit libraries skipped. Install lib32-nvidia-utils manually if needed for 32-bit games."
     else
         print_msg "Skipping NVIDIA driver installation."
     fi
